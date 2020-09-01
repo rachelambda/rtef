@@ -1,5 +1,4 @@
 #include "elf_header.h"
-#include "error.h"
 
 void elf64_header_read(elf64_header* h, u8* b) {
     memcpy(h, b, sizeof(elf64_header));

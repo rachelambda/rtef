@@ -2,7 +2,7 @@ TARGET?=rtef
 PREFIX?=/usr
 INSTALL_PATH?=$(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
-OBJECTS=
+OBJECTS=src/elf_header.c
 
 CFLAGS?=-march=native -mtune=generic -O2 -pipe
 # Strict warnings

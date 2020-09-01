@@ -1,6 +1,10 @@
 #ifndef __ELF_HEADER_H
 #define __ELF_HEADER_H
+#include <stdio.h>
+#include <string.h>
+
 #include "int.h"
+#include "error.h"
 
 typedef struct {
     u32 magic;
@@ -46,6 +50,14 @@ typedef struct {
     u16 section_header_name_index;
 } elf64_header;
 
-typedef elf_header elf64_header;
+typedef elf64_header elf_header;
+
+void elf64_header_read(elf64_header* h, u8* b);
+
+void elf32_header_read(elf32_header* h, u8* b);
+
+error elf64_header_read_at(elf64_header* h, FILE* f);
+
+error elf32_header_read_at(elf32_header* h, FILE* f);
 
 #endif
