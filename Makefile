@@ -5,9 +5,9 @@ INSTALL_PATH?=$(DESTDIR)$(PREFIX)/bin/$(TARGET)
 OBJECTS=
 
 CFLAGS?=-march=native -mtune=generic -O2 -pipe
-# Keep code tidy and up to standard
+# Strict warnings
 CFLAGS+= \
-	-Werror=pedantic \
+    -Werror=pedantic \
     -Werror=return-local-addr \
     -Werror=missing-prototypes \
     -Werror=strict-prototypes \
