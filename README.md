@@ -13,8 +13,6 @@ Goals
 
 * Keep code simple and portable, ideally without POSIX C extensions
 
-* Do not rely on libelf
-
 * Give the user the ability to align and move sections in their code
 
 Non-goals
