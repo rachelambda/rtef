@@ -10,8 +10,8 @@ Though I live in Sweden I've chosen to document my work in English for two reaso
 
 In this work I will attempt to answer the following questions:
 
-* How does the x86_64 processor architecture handle executable loading.
+1. How do x86_64 processors load executables?
 
-* What operations must a linker run in order to convert object files into an executable file.
+2. What operations must a linker run in order to convert object files into an executable file?
 
-* What features are needed to create a linker capable of linking a kernel
+3. What features are needed to create a linker capable of linking a kernel?
