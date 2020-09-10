@@ -13,6 +13,7 @@ Handledare: Sofie Kjellgren
 | Date | Currently working on | Plans for immediate future |
 | :--- | :------------------- | :------------------------- |
 | 03 Sep 2020 | Reading ELF spec | Reading ELF spec |
+| 10 Sep 2020 | Reading ELF spec and writing docs | Plan out program |
 
 ## Abstract
 
