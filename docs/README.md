@@ -10,3 +10,5 @@ Though I live in Sweden I've chosen to document my work in English for two reaso
 2. This is also a public GitHub repository, and this report might end up being a useful resource for another, future, programmer.
 
 The actual report is in [report.md](report.md)
+
+The rough planning for the project is available in [planning.md](planning.md)

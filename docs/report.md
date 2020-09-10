@@ -8,8 +8,6 @@ TE HT 2020-VT 2021
 
 Handledare: Sofie Kjellgren
 
-# THIS SECTION IS TEMPORARY
-
 | Date | Currently working on | Plans for immediate future |
 | :--- | :------------------- | :------------------------- |
 | 03 Sep 2020 | Reading ELF spec | Reading ELF spec |
@@ -23,6 +21,10 @@ Handledare: Sofie Kjellgren
 
 ### Background
 
+An operating systems core, the kernel is made up of many different object files which must be linked by a linker. However existing linkers are large, arguably over engineered, programs which makes it hard to port them to new operating systems. This makes it much harder to achieve a self hosting operating system.
+
+In order to limit the scope of this project I've chosen to only target the x86_64 processor architecture as well as only supporting the ELF format for relocatable and executable files.
+
 ### Purpose
 
 ### Query (frågeställning)
@@ -32,6 +34,10 @@ TODO, find better title
 
 ### Feature Specification (kravspec)
 TODO, find better title
+
+### Required knowledge
+
+Talk about the object, executable model as well as the ELF file format.
 
 ## Results
 
