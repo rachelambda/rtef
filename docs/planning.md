@@ -12,9 +12,14 @@ In order to limit the scope of this project I've chosen to only target the x86_6
 
 | Week | Goal |
 | :--- | :--- |
-| 40   | Finish reading and comprehending specifications |
-| 41   | Finish planning out program structure |
+| 39   | Finish reading and comprehending specifications |
+| 40   | Finish planning out program structure |
 | 44   | Achieve some form of simple linking |
 | 48   | Complete program |
 | 50   | Complete Report |
 
+# Progress
+
+| Week | Currently Doing | Done |
+| :--- | :-------------- | :--- |
+| 37   | Working on report | None |

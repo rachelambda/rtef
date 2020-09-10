@@ -41,4 +41,3 @@ Talk about the object, executable model as well as the ELF file format.
 ## Sources
 
 ## Attachments
-
