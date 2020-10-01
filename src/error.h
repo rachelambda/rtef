@@ -3,7 +3,6 @@
 
 typedef enum {
     ERROR_NO_ERROR = 0,
-    ERROR_FREAD,
 } error;
 
 #endif
