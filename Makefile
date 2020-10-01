@@ -1,8 +1,9 @@
 TARGET?=rtef
 PREFIX?=/usr
+PROGNAME?=rtef
 INSTALL_PATH?=$(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
-OBJECTS=src/elf_header.c
+OBJECTS=src/global.o src/main.o src/verify.o
 
 CFLAGS?=-march=native -mtune=generic -O2 -pipe
 # Strict warnings
@@ -13,6 +14,8 @@ CFLAGS+= \
     -Werror=strict-prototypes \
     -Wall \
     -Wextra \
+    -D_POSIX_C_SOURCE=200809L \
+	-DPROGNAME="\"$(PROGNAME)\"" \
     -std=c99
 
 all: $(TARGET)
