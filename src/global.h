@@ -33,6 +33,6 @@ void _m(const char* t, const char *f, const char *fu, const int l, const char *f
 /*
    a printf prefixed by program name
  */ 
-void log(const char *fmt, ...);
+void plog(const char *fmt, ...);
 
 #endif

@@ -15,7 +15,7 @@ void _m(const char* t, const char *f, const char *fu, const int l, const char *f
     va_end(args);
 }
 
-void log(const char *fmt, ...) {
+void plog(const char *fmt, ...) {
 
     va_list args;
 

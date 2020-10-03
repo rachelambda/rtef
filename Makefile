@@ -5,7 +5,8 @@ INSTALL_PATH?=$(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
 OBJECTS=src/global.o src/main.o src/file.o
 
-CFLAGS?=-march=native -mtune=generic -O2 -pipe
+debug: CFLAGS?=-O0 -g
+all: CFLAGS?=-O2 -pipe
 # Strict warnings
 CFLAGS+= \
     -Werror=pedantic \
@@ -19,6 +20,8 @@ CFLAGS+= \
     -std=c99
 
 all: $(TARGET)
+
+debug: $(TARGET)
 
 install: $(TARGET)
 	install -Dm755 $(TARGET) $(INSTALL_PATH)
