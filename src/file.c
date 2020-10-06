@@ -9,6 +9,59 @@ size_t infilecnt;
 
 unsigned int has_entry = 0;
 
+void shdrtype_str(uint32_t type) {
+    switch (type) {
+        case SHT_NULL:
+            printf("SHT_NULL\n");
+            break;
+        case SHT_PROGBITS:
+            printf("SHT_PROGBITS\n");
+            break;
+        case SHT_SYMTAB:
+            printf("SHT_SYMTAB\n");
+            break;
+        case SHT_STRTAB:
+            printf("SHT_STRTAB\n");
+            break;
+        case SHT_RELA:
+            printf("SHT_RELA\n");
+            break;
+        case SHT_HASH:
+            printf("SHT_HASH\n");
+            break;
+        case SHT_DYNAMIC:
+            printf("SHT_DYNAMIC\n");
+            break;
+        case SHT_NOTE:
+            printf("SHT_NOTE\n");
+            break;
+        case SHT_NOBITS:
+            printf("SHT_NOBITS\n");
+            break;
+        case SHT_REL:
+            printf("SHT_REL\n");
+            break;
+        case SHT_SHLIB:
+            printf("SHT_SHLIB\n");
+            break;
+        case SHT_DYNSYM:
+            printf("SHT_DYNSYM\n");
+            break;
+        case SHT_HIPROC:
+            printf("SHT_HIPROC\n");
+            break;
+        case SHT_LOPROC:
+            printf("SHT_HILOPROC\n");
+            break;
+        case SHT_LOUSER:
+            printf("SHT_LOUSER\n");
+            break;
+        case SHT_HIUSER:
+            printf("SHT_HIUSER\n");
+            break;
+    }
+}
+
 void read_files(char** paths, int pathc) {
     infiles = malloc(pathc * (sizeof(const char*)));
     infilecnt = pathc;
@@ -79,6 +132,6 @@ void read_files(char** paths, int pathc) {
             msg("Unable to read section headers from file '%s'", infiles[i].path);
 
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++)
-            msg("%d/%d: %d", n, infiles[i].ehdr.e_shnum, infiles[i].shdrs[n].sh_type);
+            shdrtype_str(infiles[i].shdrs[n].sh_type);
     }
 }
