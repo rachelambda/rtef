@@ -23,6 +23,7 @@ void plog(const char *fmt, ...) {
 
     printf("%s: ", PROGNAME);
     vprintf(fmt, args);
+    printf("\n");
 
     va_end(args);
 }

@@ -7,14 +7,9 @@ OBJECTS=src/global.o src/main.o src/file.o
 
 debug: CFLAGS?=-O0 -g
 all: CFLAGS?=-O2 -pipe
-# Strict warnings
-CFLAGS+= \
-    -Werror=pedantic \
-    -Werror=return-local-addr \
-    -Werror=missing-prototypes \
-    -Werror=strict-prototypes \
-    -Wall \
-    -Wextra \
+# Strict
+WFLAGS= \
+	-Werror=pedantic \
     -D_POSIX_C_SOURCE=0 \
 	-DPROGNAME="\"$(PROGNAME)\"" \
     -std=c99
@@ -33,9 +28,9 @@ clean:
 	rm -f $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(WFLAGS) $(CFLAGS) $^ -o $@
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c $(WFLAGS) $(CFLAGS) $< -o $@
 
 .PHONY: clean install
