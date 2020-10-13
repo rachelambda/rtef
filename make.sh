@@ -12,7 +12,6 @@ LD="${LD:-cc}"
 OBJECTS="$(grep -E '^OBJECTS=' GNUmakefile)"
 OBJECTS="${OBJECTS#OBJECTS=}"
 
-CFLAGS="$CFLAGS -static"
 WFLAGS="
 	-Werror=pedantic
     -D_POSIX_C_SOURCE=0

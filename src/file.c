@@ -163,6 +163,7 @@ void read_files(char** paths, int pathc) {
 
 void check_collisions() {
     for (int i = 0; i < infilecnt; i++) {
+        msg("reading symbols");
         /* find symbol tables */
         size_t symbytes = 0;
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
@@ -171,14 +172,20 @@ void check_collisions() {
             }
         }
         xmalloc(infiles[i].syms, symbytes);
+        infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
         symbytes = 0;
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
             if (infiles[i].shdrs[n].sh_type == SHT_SYMTAB) {
                 fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
-                fread(infiles[i].syms[symbytes], 1, infiles[i].shdrs[n].sh_size,
-                        infiles[i].shdrs[n].sh_size);
+                fread(&infiles[i].syms[symbytes], 1, infiles[i].shdrs[n].sh_size,
+                        infiles[i].fp);
                 symbytes += infiles[i].shdrs[n].sh_size; 
             }
+        }
+
+        msg("printing syms");
+        for (int n = 0; n < infiles[i].symcnt; n++) {
+            puts(&infiles[i].symstr[infiles[i].syms[n].st_name]);
         }
         /* TODO handle rel & rela reading here */
     }

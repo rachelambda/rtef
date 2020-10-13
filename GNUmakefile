@@ -5,14 +5,11 @@ INSTALL_PATH?=$(DESTDIR)$(PREFIX)/bin/$(TARGET)
 
 OBJECTS=src/global.o src/main.o src/file.o
 
-debug: CFLAGS?=-O0 -g
-all: CFLAGS?=-O2 -pipe
 # Strict
 WFLAGS= \
 	-Werror=pedantic \
     -D_POSIX_C_SOURCE=0 \
 	-DPROGNAME="\"$(PROGNAME)\"" \
-	-static \
     -std=c99
 
 all: $(TARGET)

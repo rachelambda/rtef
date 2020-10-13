@@ -37,4 +37,4 @@ Make time:
 
 * An elf.h implementation for your platform (GNU Linux elf.h and OpenBSD elf.h used in development process)
 
-* C library (glibc and OpenBSD libc used in development process)
+* C library (glibc and OpenBSD libc used in development process), made build time depend with CFLAGS=-static
