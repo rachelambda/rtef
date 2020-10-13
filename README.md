@@ -19,3 +19,12 @@ Non-goals
 ---------
 
 * Dynamic linking
+
+Depends
+-------
+
+* C library
+
+* An elf.h implementation for your platform
+
+* gmake or bourne shell (make process)
