@@ -20,11 +20,21 @@ Non-goals
 
 * Dynamic linking
 
-Depends
--------
+Portability
+-----------
 
-* C library
+rtef currently has the following depends
 
-* An elf.h implementation for your platform
+Run time:
 
-* gmake or bourne shell (make process)
+* None
+
+Make time:
+
+* C compiler and linker (tcc used in the development process)
+
+* gmake or bourne shell
+
+* An elf.h implementation for your platform (GNU Linux elf.h and OpenBSD elf.h used in development process)
+
+* C library (glibc and OpenBSD libc used in development process)

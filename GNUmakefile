@@ -12,6 +12,7 @@ WFLAGS= \
 	-Werror=pedantic \
     -D_POSIX_C_SOURCE=0 \
 	-DPROGNAME="\"$(PROGNAME)\"" \
+	-static \
     -std=c99
 
 all: $(TARGET)
