@@ -12,39 +12,39 @@ LD="${LD:-cc}"
 OBJECTS="$(grep -E '^OBJECTS=' GNUmakefile)"
 OBJECTS="${OBJECTS#OBJECTS=}"
 
+CFLAGS="$CFLAGS -static"
 WFLAGS="
 	-Werror=pedantic
     -D_POSIX_C_SOURCE=0
 	-DPROGNAME=\"\\\"$PROGNAME\\\"\"
-	-static
     -std=c99"
+
+erun() {
+	echo $*
+	$*
+}
 
 CC() {
     OUTFILE="$1"
     shift
-	echo $CC -c $WFLAGS $CFLAGS $* -o $OUTFILE
-	$CC -c $WFLAGS $CFLAGS $* -o $OUTFILE
+	erun $CC -c $WFLAGS $CFLAGS $* -o $OUTFILE
 }
 
 LD() {
     OUTFILE="$1"
     shift
-	echo $LD -c $WFLAGS $CFLAGS $* -o $OUTFILE
-	$LD $WFLAGS $CFLAGS $* -o $OUTFILE
+	erun $LD $CFLAGS $* -o $OUTFILE
 }
 
 case "$1" in
     clean)
-		echo rm -f $OBJECTS
-		rm -f $OBJECTS
+		erun rm -f $OBJECTS
         ;;
     install)
-        echo install -Dm755 $TARGET $INSTALL_PATH
-        install -Dm755 $TARGET $INSTALL_PATH
+        erun install -Dm755 $TARGET $INSTALL_PATH
         ;;
     uninstall)
-        echo rm -f $INSTALL_PATH
-        rm -f $INSTALL_PATH
+        erun rm -f $INSTALL_PATH
         ;;
     *)
         [ "$1" = debug ] && CFLAGS="$CFLAGS -O0 -g"
