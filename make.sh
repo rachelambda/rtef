@@ -35,12 +35,16 @@ LD() {
 
 case "$1" in
     clean)
+		echo rm -f $OBJECTS
+		rm -f $OBJECTS
         ;;
     install)
-        install -Dm755 $(TARGET) $(INSTALL_PATH)
+        echo install -Dm755 $TARGET $INSTALL_PATH
+        install -Dm755 $TARGET $INSTALL_PATH
         ;;
     uninstall)
-        rm -f $(INSTALL_PATH)
+        echo rm -f $INSTALL_PATH
+        rm -f $INSTALL_PATH
         ;;
     *)
         [ "$1" = debug ] && CFLAGS="$CFLAGS -O0 -g"
