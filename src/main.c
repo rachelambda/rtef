@@ -9,5 +9,5 @@ int main(int argc, char** argv) {
 
     msg("read files");
 
-    check_collissions();
+    check_collisions();
 }
