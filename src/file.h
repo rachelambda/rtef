@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <elf.h>
 
+    char* sec;
+} elf_symbol;
+
 typedef struct {
     /* file pointer to object file */
     FILE* fp;

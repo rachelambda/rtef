@@ -163,7 +163,23 @@ void read_files(char** paths, int pathc) {
 
 void check_collisions() {
     for (int i = 0; i < infilecnt; i++) {
-        /* TODO handle symbol reading here */
+        /* find symbol tables */
+        size_t symbytes = 0;
+        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
+            if (infiles[i].shdrs[n].sh_type == SHT_SYMTAB) {
+                symbytes += infiles[i].shdrs[n].sh_size; 
+            }
+        }
+        xmalloc(infiles[i].syms, symbytes);
+        symbytes = 0;
+        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
+            if (infiles[i].shdrs[n].sh_type == SHT_SYMTAB) {
+                fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
+                fread(infiles[i].syms[symbytes], 1, infiles[i].shdrs[n].sh_size,
+                        infiles[i].shdrs[n].sh_size);
+                symbytes += infiles[i].shdrs[n].sh_size; 
+            }
+        }
         /* TODO handle rel & rela reading here */
     }
 
