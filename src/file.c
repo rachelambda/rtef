@@ -163,7 +163,7 @@ void read_files(char** paths, int pathc) {
 
 void check_collisions() {
     for (int i = 0; i < infilecnt; i++) {
-        msg("reading symbols");
+        msg("allocating symbols");
         /* find symbol tables */
         size_t symbytes = 0;
         size_t relbytes = 0;
@@ -193,6 +193,7 @@ void check_collisions() {
         relbytes = 0;
         relabytes = 0;
 
+        msg("allocating symbols");
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
             switch (infiles[i].shdrs[n].sh_type) {
                 case SHT_SYMTAB:
