@@ -189,30 +189,30 @@ void check_collisions() {
         infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
         infiles[i].relcnt = relbytes / sizeof(Elf64_Rel);
         infiles[i].relacnt = relabytes / sizeof(Elf64_Rela);
-        symbytes = 0;
-        relbytes = 0;
-        relabytes = 0;
+        size_t symcnt = 0;
+        size_t relcnt = 0;
+        size_t relacnt = 0;
 
         msg("allocating symbols");
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
             switch (infiles[i].shdrs[n].sh_type) {
                 case SHT_SYMTAB:
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
-                    xfread(&infiles[i].syms[symbytes], infiles[i].shdrs[n].sh_size,
+                    xfread(&infiles[i].syms[symcnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    symbytes += infiles[i].shdrs[n].sh_size; 
+                    symcnt++;
                     break;
                 case SHT_REL:
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
-                    xfread(&infiles[i].rels[relbytes], infiles[i].shdrs[n].sh_size,
+                    xfread(&infiles[i].rels[relcnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    relbytes += infiles[i].shdrs[n].sh_size; 
+                    relcnt++;
                     break;
                 case SHT_RELA:
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
-                    xfread(&infiles[i].relas[relabytes], infiles[i].shdrs[n].sh_size,
+                    xfread(&infiles[i].relas[relacnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    relabytes += infiles[i].shdrs[n].sh_size; 
+                    relacnt++;
                     break;
             }
         }
