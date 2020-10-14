@@ -132,7 +132,7 @@ void read_files(char** paths, int pathc) {
 
         xmalloc(infiles[i].secstr, infiles[i].secstrtab.sh_size);
         fseek(infiles[i].fp, infiles[i].secstrtab.sh_offset, SEEK_SET);
-        fread(infiles[i].secstr, 1, infiles[i].secstrtab.sh_size, infiles[i].fp);
+        xfread(infiles[i].secstr, infiles[i].secstrtab.sh_size, infiles[i].fp);
 
         infiles[i].symstr = 0;
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
@@ -144,7 +144,7 @@ void read_files(char** paths, int pathc) {
                 infiles[i].symstrtab = infiles[i].shdrs[n];
                 xmalloc(infiles[i].symstr, infiles[i].symstrtab.sh_size);
                 fseek(infiles[i].fp, infiles[i].symstrtab.sh_offset, SEEK_SET);
-                fread(infiles[i].symstr, 1, infiles[i].symstrtab.sh_size, infiles[i].fp);
+                xfread(infiles[i].symstr, infiles[i].symstrtab.sh_size, infiles[i].fp);
             }
         }
 
@@ -166,29 +166,81 @@ void check_collisions() {
         msg("reading symbols");
         /* find symbol tables */
         size_t symbytes = 0;
+        size_t relbytes = 0;
+        size_t relabytes = 0;
+
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
-            if (infiles[i].shdrs[n].sh_type == SHT_SYMTAB) {
-                symbytes += infiles[i].shdrs[n].sh_size; 
-            }
-        }
-        xmalloc(infiles[i].syms, symbytes);
-        infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
-        symbytes = 0;
-        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
-            if (infiles[i].shdrs[n].sh_type == SHT_SYMTAB) {
-                fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
-                fread(&infiles[i].syms[symbytes], 1, infiles[i].shdrs[n].sh_size,
-                        infiles[i].fp);
-                symbytes += infiles[i].shdrs[n].sh_size; 
+            switch (infiles[i].shdrs[n].sh_type) {
+                case SHT_SYMTAB:
+                    symbytes += infiles[i].shdrs[n].sh_size; 
+                    break;
+                case SHT_REL:
+                    relbytes += infiles[i].shdrs[n].sh_size; 
+                    break;
+                case SHT_RELA:
+                    relabytes += infiles[i].shdrs[n].sh_size; 
+                    break;
             }
         }
 
+        xmalloc(infiles[i].syms, symbytes);
+        xmalloc(infiles[i].rels, relbytes);
+        xmalloc(infiles[i].relas, relabytes);
+        infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
+        infiles[i].relcnt = relbytes / sizeof(Elf64_Rel);
+        infiles[i].relacnt = relabytes / sizeof(Elf64_Rela);
+        symbytes = 0;
+        relbytes = 0;
+        relabytes = 0;
+
+        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
+            switch (infiles[i].shdrs[n].sh_type) {
+                case SHT_SYMTAB:
+                    fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
+                    xfread(&infiles[i].syms[symbytes], infiles[i].shdrs[n].sh_size,
+                            infiles[i].fp);
+                    symbytes += infiles[i].shdrs[n].sh_size; 
+                    break;
+                case SHT_REL:
+                    fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
+                    xfread(&infiles[i].rels[relbytes], infiles[i].shdrs[n].sh_size,
+                            infiles[i].fp);
+                    relbytes += infiles[i].shdrs[n].sh_size; 
+                    break;
+                case SHT_RELA:
+                    fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
+                    xfread(&infiles[i].relas[relabytes], infiles[i].shdrs[n].sh_size,
+                            infiles[i].fp);
+                    relabytes += infiles[i].shdrs[n].sh_size; 
+                    break;
+            }
+        }
+
+        if (symbytes / sizeof(Elf64_Sym) != infiles[i].symcnt)
+            die("Wrong Size");
+        if (relbytes / sizeof(Elf64_Rel) != infiles[i].relcnt)
+            die("Wrong Size");
+        if (relabytes / sizeof(Elf64_Rela) != infiles[i].relacnt)
+            die("Wrong Size");
+
+        /* TODO remove all debugging prints */
         msg("printing syms");
         for (int n = 0; n < infiles[i].symcnt; n++) {
             puts(&infiles[i].symstr[infiles[i].syms[n].st_name]);
         }
+
+        msg("printing rels");
+        for (int n = 0; n < infiles[i].relcnt; n++) {
+            printf("name: %s, offset: %ld\n", &infiles[i].symstr[ELF64_R_SYM(infiles[i].rels[n].r_info)], infiles[i].rels[n].r_offset);
+        }
+
+        msg("printing relas");
+        for (int n = 0; n < infiles[i].relacnt; n++) {
+            printf("name: %s, offset: %ld addend: %ld\n", &infiles[i].symstr[infiles[i].syms[ELF64_R_SYM(infiles[i].relas[n].r_info)].st_name], infiles[i].relas[n].r_offset, infiles[i].relas[n].r_addend);
+        }
+
         /* TODO handle rel & rela reading here */
     }
 
-    /* TODO compare symbols */
+    /* TODO compare symbols (collisions) */
 }
