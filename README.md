@@ -25,16 +25,27 @@ Portability
 
 rtef currently has the following depends
 
-Run time:
+C library with the following symbols
+```
+malloc
+exit
+fopen
+fread
+fseek
+memmove
+strcmp
+stdout
+fwrite
+puts
+printf
+strlen
+strcpy
+realloc
+vprintf
+```
 
-* None
+An elf.h implementation for your platform (GNU elf.h for Linux and OpenBSD elf.h for OpenBSD used in development process)
 
-Make time:
+A C compiler (tcc, gcc and clang used in development process)
 
-* C compiler and linker (tcc used in the development process)
-
-* gmake or bourne shell
-
-* An elf.h implementation for your platform (GNU Linux elf.h and OpenBSD elf.h used in development process)
-
-* C library (glibc and OpenBSD libc used in development process), made build time depend with CFLAGS=-static
+gmake or bourne shell to automate compilation (not strictly needed)

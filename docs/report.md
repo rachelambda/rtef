@@ -32,7 +32,13 @@ TODO, find better title
 
 ### Required knowledge
 
-Talk about the object, executable model as well as the ELF file format.
+TODO, find sources to back up your knowledge, cause I'm not credible enough on my own...
+
+During the compilation of a program from source code there are generally two steps. The source files are first compiled into object files by a compiler and these object files are then linked together into a single executable file which the operating system is able to parse and let the processor execute.
+
+ELF, executable and linkable format, is a file format for both object and executable files which uses a variety of different tables in order to specify the contents of an object or executable file.
+
+x86_64 is a short hand for i386/i686 64 bit, sometimes also reffered to as amd64. This is the processor architecture most commonplace in personal computers currently.
 
 ## Results
 

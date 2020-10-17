@@ -33,10 +33,17 @@ typedef struct {
     char* symstr;
 } elf_file;
 
+typedef struct {
+    char* name;
+    size_t defs;
+} sym_def;
+
 /* get the endian of a file */
 #define F_ENDIAN(f) f.ehdr.e_ident[EI_DATA]
 /* get the endian of a file pointer */
 #define P_ENDIAN(f) f->ehdr.e_ident[EI_DATA]
+/* find out if a symbol is defined */
+#define SYM_IS_DEF(sym) (sym.st_shndx != SHN_UNDEF)
 
 /* Reads pathc amount of files in array paths */
 /* and then collects ELF data from them. */
@@ -46,5 +53,8 @@ void read_files(char** paths, int pathc);
 /* read symbol and relocation entries and then use these */
 /* in order to check for collisions in files */
 void check_collisions();
+
+/* use collected data to write an executable file */
+void create_exec(char* filename);
 
 #endif

@@ -135,7 +135,7 @@ void read_files(char** paths, int pathc) {
         xfread(infiles[i].secstr, infiles[i].secstrtab.sh_size, infiles[i].fp);
 
         infiles[i].symstr = 0;
-        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
+        for (int n = SHN_UNDEF + 1; n < infiles[i].ehdr.e_shnum; n++) {
             msg("Name: %s Type: %s",
                     &infiles[i].secstr[infiles[i].shdrs[n].sh_name],
                     shdrtype_str(infiles[i].shdrs[n].sh_type));
@@ -169,7 +169,7 @@ void check_collisions() {
         size_t relbytes = 0;
         size_t relabytes = 0;
 
-        for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
+        for (int n = SHN_UNDEF + 1; n < infiles[i].ehdr.e_shnum; n++) {
             switch (infiles[i].shdrs[n].sh_type) {
                 case SHT_SYMTAB:
                     symbytes += infiles[i].shdrs[n].sh_size; 
@@ -193,7 +193,7 @@ void check_collisions() {
         size_t relcnt = 0;
         size_t relacnt = 0;
 
-        msg("allocating symbols");
+        msg("reading symbols");
         for (int n = 0; n < infiles[i].ehdr.e_shnum; n++) {
             switch (infiles[i].shdrs[n].sh_type) {
                 case SHT_SYMTAB:
@@ -226,8 +226,10 @@ void check_collisions() {
 
         /* TODO remove all debugging prints */
         msg("printing syms");
-        for (int n = 0; n < infiles[i].symcnt; n++) {
+        for (int n = STN_UNDEF + 1; n < infiles[i].symcnt; n++) {
             puts(&infiles[i].symstr[infiles[i].syms[n].st_name]);
+            if (infiles[i].syms[n].st_shndx == SHN_UNDEF)
+                msg("UNDEF");
         }
 
         msg("printing rels");
@@ -240,8 +242,66 @@ void check_collisions() {
             printf("name: %s, offset: %ld addend: %ld\n", &infiles[i].symstr[infiles[i].syms[ELF64_R_SYM(infiles[i].relas[n].r_info)].st_name], infiles[i].relas[n].r_offset, infiles[i].relas[n].r_addend);
         }
 
-        /* TODO handle rel & rela reading here */
     }
 
     /* TODO compare symbols (collisions) */
+
+    msg("CHECKING COLLISIONS");
+
+    /* TODO use a hashmap here instead of expensive comparissons */
+
+    size_t symcnt = 0;
+    for (int i = 0; i < infilecnt; i++) {
+        symcnt += infiles[i].symcnt;
+    }
+
+    /* TODO, store symbol indecies for each sym_def */
+    sym_def* syms;
+    /* assume all symbols are unique to make sure there is enough */
+    /* memory */
+    xmalloc(syms, symcnt * sizeof(sym_def));
+    symcnt = 0;
+
+    for (int i = 0; i < infilecnt; i++) {
+        for (int n = STN_UNDEF + 1; n < infiles[i].symcnt; n++) {
+            uint8_t new = 1;
+            for (int k = 0; k < symcnt; k++) {
+                /* if symbol is already defined */
+                /* TODO check symbol type and collisions */
+                if (!strcmp(syms[k].name,
+                            &infiles[i].symstr[infiles[i].syms[n].st_name])) {
+                    syms[k].defs += SYM_IS_DEF(infiles[i].syms[n]);
+                    new = 0;
+                }
+            }
+            if (new) {
+                syms[symcnt].name =
+                    &infiles[i].symstr[infiles[i].syms[n].st_name];
+                syms[symcnt].defs = SYM_IS_DEF(infiles[i].syms[n]);
+                symcnt++;
+            }
+        }
+    }
+
+    /* free unneeded memory */
+    xrealloc(syms, symcnt * sizeof(sym_def));
+
+    /* check collisions and stuff */
+    for (int n = 0; n < symcnt; n++) {
+        /* TODO on release, kill program here */
+        if (!syms[n].defs)
+            msg("UNDEFINED SYMBOL: '%s'", syms[n].name);
+        /* TODO stop ignoring redefined symbols */
+        if (syms[n].defs > 1)
+            msg("REDEFINED SYMBOL: '%s', DEFINED %d TIMES", syms[n].name, syms[n].defs);
+    }
+}
+
+void create_exec(char* filename) {
+    FILE* outfp = fopen(filename, "wb");
+
+    if (!outfp)
+        die("Unable to start writing to file '%s'", filename);
+
+    /* TODO move sections, create program header */
 }

@@ -19,6 +19,10 @@
 /* line info in die */
 #define xmalloc(a, b) a = malloc(b);if(!a)die("malloc failed")
 
+/* error checking realloc, made macro to have */
+/* line info in die */
+#define xrealloc(a, b) a = realloc(a, b);if(!a)die("realloc failed")
+
 /* errror checking fread */
 #define xfread(b, s, f) if(fread(b, 1, s, f) != s)die("fread failed")
 
