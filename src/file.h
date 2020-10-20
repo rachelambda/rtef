@@ -36,6 +36,8 @@ typedef struct {
 typedef struct {
     char* name;
     size_t defs;
+    Elf64_Sym** syms;
+    size_t symcnt;
 } sym_def;
 
 /* get the endian of a file */

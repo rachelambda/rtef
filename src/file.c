@@ -260,6 +260,7 @@ void check_collisions() {
     /* assume all symbols are unique to make sure there is enough */
     /* memory */
     xmalloc(syms, symcnt * sizeof(sym_def));
+
     symcnt = 0;
 
     for (int i = 0; i < infilecnt; i++) {
@@ -270,7 +271,13 @@ void check_collisions() {
                 /* TODO check symbol type and collisions */
                 if (!strcmp(syms[k].name,
                             &infiles[i].symstr[infiles[i].syms[n].st_name])) {
+
                     syms[k].defs += SYM_IS_DEF(infiles[i].syms[n]);
+
+                    syms[k].symcnt++;
+                    xrealloc(syms[k].syms, sizeof(Elf64_Sym*) * syms[k].symcnt);
+                    syms[k].syms[symcnt - 1] = &infiles[i].syms[n];
+
                     new = 0;
                 }
             }
@@ -278,7 +285,13 @@ void check_collisions() {
                 syms[symcnt].name =
                     &infiles[i].symstr[infiles[i].syms[n].st_name];
                 syms[symcnt].defs = SYM_IS_DEF(infiles[i].syms[n]);
+
+                syms[symcnt].symcnt = 1;
+                xmalloc(syms[symcnt].syms, sizeof(Elf64_Sym*));
+                syms[symcnt].syms[0] = &infiles[i].syms[n];
+
                 symcnt++;
+
             }
         }
     }
@@ -291,9 +304,13 @@ void check_collisions() {
         /* TODO on release, kill program here */
         if (!syms[n].defs)
             msg("UNDEFINED SYMBOL: '%s'", syms[n].name);
-        /* TODO stop ignoring redefined symbols */
-        if (syms[n].defs > 1)
+
+        if (syms[n].defs > 1) {
+            /* TODO look for the types and check for collisions here */
+            for (int k = 0; k < syms[n].symcnt; k++) {
             msg("REDEFINED SYMBOL: '%s', DEFINED %d TIMES", syms[n].name, syms[n].defs);
+            }
+        }
     }
 }
 
@@ -302,6 +319,8 @@ void create_exec(char* filename) {
 
     if (!outfp)
         die("Unable to start writing to file '%s'", filename);
+
+    Elf64_Phdr = phdr;
 
     /* TODO move sections, create program header */
 }
