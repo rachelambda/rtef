@@ -40,6 +40,11 @@ typedef struct {
     size_t symcnt;
 } sym_def;
 
+typedef struct {
+    char* name;
+    Elf64_Shdr** secs;
+    size_t seccnt;
+} sec_def;
 /* get the endian of a file */
 #define F_ENDIAN(f) f.ehdr.e_ident[EI_DATA]
 /* get the endian of a file pointer */

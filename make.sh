@@ -37,7 +37,7 @@ LD() {
 
 case "$1" in
     clean)
-		erun rm -f $OBJECTS
+		erun rm -f $OBJECTS rtef.out
         ;;
     install)
         erun install -Dm755 $TARGET $INSTALL_PATH

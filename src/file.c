@@ -7,6 +7,8 @@
 
 elf_file* infiles;
 size_t infilecnt;
+sym_def* syms;
+sec_def* secs;
 
 unsigned int has_entry = 0;
 
@@ -93,13 +95,9 @@ void read_files(char** paths, int pathc) {
         if (infiles[i].ehdr.e_version == EV_NONE)
             die("Invalid ELF version in file '%s'", paths[i]);
 
-        if (infiles[i].ehdr.e_entry) {
-            if (has_entry) {
-                die("Multiple entry points");
-            } else {
-                has_entry = 1;
-            }
-        }
+        has_entry += infiles[i].ehdr.e_entry;
+        if (has_entry > 1)
+            die("Multiple entry points");
 
         /* END FILE VALIDATION */
 
@@ -255,8 +253,6 @@ void check_collisions() {
         symcnt += infiles[i].symcnt;
     }
 
-    /* TODO, store symbol indecies for each sym_def */
-    sym_def* syms;
     /* assume all symbols are unique to make sure there is enough */
     /* memory */
     xmalloc(syms, symcnt * sizeof(sym_def));
@@ -268,7 +264,6 @@ void check_collisions() {
             uint8_t new = 1;
             for (int k = 0; k < symcnt; k++) {
                 /* if symbol is already defined */
-                /* TODO check symbol type and collisions */
                 if (!strcmp(syms[k].name,
                             &infiles[i].symstr[infiles[i].syms[n].st_name])) {
 
@@ -276,7 +271,7 @@ void check_collisions() {
 
                     syms[k].symcnt++;
                     xrealloc(syms[k].syms, sizeof(Elf64_Sym*) * syms[k].symcnt);
-                    syms[k].syms[symcnt - 1] = &infiles[i].syms[n];
+                    syms[k].syms[syms[k].symcnt - 1] = &infiles[i].syms[n];
 
                     new = 0;
                 }
@@ -312,6 +307,64 @@ void check_collisions() {
             }
         }
     }
+
+    /* organise section headers */
+    size_t seccnt = 0;
+    for (int i = 0; i < infilecnt; i++) {
+        seccnt += infiles[i].ehdr.e_shnum;
+    }
+
+    /* assume all sections are unique to make sure there is enough */
+    /* memory */
+    xmalloc(secs, seccnt * sizeof(sec_def));
+
+    seccnt = 0;
+
+    for (int i = 0; i < infilecnt; i++) {
+        for (int n = SHN_UNDEF + 1; n < infiles[i].ehdr.e_shnum; n++) {
+            uint8_t new = 1;
+            for (int k = 0; k < seccnt; k++) {
+                /* if section is already defined */
+                if (!strcmp(secs[k].name,
+                            &infiles[i].secstr[infiles[i].shdrs[n].sh_name])) {
+
+                    secs[k].seccnt++;
+                    xrealloc(secs[k].secs, sizeof(Elf64_Shdr*) * secs[k].seccnt);
+                    secs[k].secs[secs[k].seccnt - 1] = &infiles[i].shdrs[n];
+
+                    new = 0;
+                }
+            }
+            if (new) {
+                secs[seccnt].name =
+                    &infiles[i].secstr[infiles[i].shdrs[n].sh_name];
+
+                secs[seccnt].seccnt = 1;
+                xmalloc(secs[seccnt].secs, sizeof(Elf64_Shdr*));
+                secs[seccnt].secs[0] = &infiles[i].shdrs[n];
+
+                seccnt++;
+
+            }
+        }
+    }
+
+    /* free unneeded memory */
+    xrealloc(secs, seccnt * sizeof(sec_def));
+
+    /* output final list of headers */
+    for (int n = 0; n < seccnt; n++) {
+        /* TODO on release, kill program here */
+        if (!syms[n].defs)
+            msg("UNDEFINED SYMBOL: '%s'", syms[n].name);
+
+        if (syms[n].defs > 1) {
+            /* TODO look for the types and check for collisions here */
+            for (int k = 0; k < syms[n].symcnt; k++) {
+            msg("REDEFINED SYMBOL: '%s', DEFINED %d TIMES", syms[n].name, syms[n].defs);
+            }
+        }
+    }
 }
 
 void create_exec(char* filename) {
@@ -320,7 +373,8 @@ void create_exec(char* filename) {
     if (!outfp)
         die("Unable to start writing to file '%s'", filename);
 
-    Elf64_Phdr = phdr;
+    Elf64_Phdr* phdrs;
+    size_t phdrcnt = 0;
 
     /* TODO move sections, create program header */
 }

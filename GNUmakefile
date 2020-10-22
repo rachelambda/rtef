@@ -23,7 +23,7 @@ uninstall: $(TARGET)
 	rm -f $(INSTALL_PATH)
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f $(OBJECTS) rtef.out
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(WFLAGS) $(CFLAGS) $^ -o $@
