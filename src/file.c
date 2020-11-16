@@ -1,16 +1,43 @@
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include <elf.h>
 
 #include "global.h"
 #include "file.h"
 
+#define START_IDENT "_start"
+/* remove if not unix, is only used to mark file executable */
+#define UNIX
+
+#ifdef UNIX
+#include <sys/stat.h>
+#endif
+
+/*
+NOTE most of the todos here are things that should be done
+once the program is working in order to make it faster,
+less memory intensive etc, and will not be done until the
+program actually runs. once the program has achieved basic
+functionality these will be resolved in order to make the
+program good.
+*/
+
+/* TODO once working look for places to free memory */
+
+/* TODO look for places to replace multiple for loops with a single one */
+
 elf_file* infiles;
 size_t infilecnt;
-sym_def* syms;
-sec_def* secs;
 
-unsigned int has_entry = 0;
+/* TODO replace with hashtable based on name */
+sym_def* syms;
+size_t symcnt;
+
+sec_def* secs;
+size_t seccnt;
+
+uint8_t has_entry = 0;
+Elf64_Addr entry_point = 0;
 
 const char* STR_SHT_NULL = "SHT_NULL";
 const char* STR_SHT_PROGBITS = "SHT_PROGBITS";
@@ -187,7 +214,7 @@ void check_collisions() {
         infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
         infiles[i].relcnt = relbytes / sizeof(Elf64_Rel);
         infiles[i].relacnt = relabytes / sizeof(Elf64_Rela);
-        size_t symcnt = 0;
+        symcnt = 0;
         size_t relcnt = 0;
         size_t relacnt = 0;
 
@@ -248,7 +275,7 @@ void check_collisions() {
 
     /* TODO use a hashmap here instead of expensive comparissons */
 
-    size_t symcnt = 0;
+    symcnt = 0;
     for (int i = 0; i < infilecnt; i++) {
         symcnt += infiles[i].symcnt;
     }
@@ -309,7 +336,7 @@ void check_collisions() {
     }
 
     /* organise section headers */
-    size_t seccnt = 0;
+    seccnt = 0;
     for (int i = 0; i < infilecnt; i++) {
         seccnt += infiles[i].ehdr.e_shnum;
     }
@@ -320,17 +347,37 @@ void check_collisions() {
 
     seccnt = 0;
 
+    /* TODO add support for other sections */
     for (int i = 0; i < infilecnt; i++) {
         for (int n = SHN_UNDEF + 1; n < infiles[i].ehdr.e_shnum; n++) {
+            if(!strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                    ".symtab") ||
+                !strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                    ".strtab") ||
+                !strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                    ".shstrtab") ||
+                !strncmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                    ".rel", 4)) {
+                continue;
+            }
             uint8_t new = 1;
             for (int k = 0; k < seccnt; k++) {
                 /* if section is already defined */
+                /* since we can only have .text, .bss or .data here */
+                /* only one char needs to be compared */
                 if (!strcmp(secs[k].name,
                             &infiles[i].secstr[infiles[i].shdrs[n].sh_name])) {
 
                     secs[k].seccnt++;
-                    xrealloc(secs[k].secs, sizeof(Elf64_Shdr*) * secs[k].seccnt);
-                    secs[k].secs[secs[k].seccnt - 1] = &infiles[i].shdrs[n];
+
+                    if (infiles[i].shdrs[n].sh_flags & SHF_WRITE)
+                        secs[k].p_flags |= PF_W;
+                    if (infiles[i].shdrs[n].sh_flags & SHF_EXECINSTR)
+                        secs[k].p_flags |= PF_X;
+
+                    xrealloc(secs[k].secs, sizeof(*secs[k].secs) * secs[k].seccnt);
+                    secs[k].secs[secs[k].seccnt - 1].sec = &infiles[i].shdrs[n];
+                    secs[k].secs[secs[k].seccnt - 1].file = &infiles[i];
 
                     new = 0;
                 }
@@ -340,8 +387,19 @@ void check_collisions() {
                     &infiles[i].secstr[infiles[i].shdrs[n].sh_name];
 
                 secs[seccnt].seccnt = 1;
-                xmalloc(secs[seccnt].secs, sizeof(Elf64_Shdr*));
-                secs[seccnt].secs[0] = &infiles[i].shdrs[n];
+
+                /* for now assume all sections can be read, possibly add an option */
+                /* to disable this for specific sections in case you're working on */
+                /* firmware for example */
+                secs[seccnt].p_flags = PF_R;
+                if (infiles[i].shdrs[n].sh_flags & SHF_WRITE)
+                    secs[seccnt].p_flags |= PF_W;
+                if (infiles[i].shdrs[n].sh_flags & SHF_EXECINSTR)
+                    secs[seccnt].p_flags |= PF_X;
+
+                xmalloc(secs[seccnt].secs, sizeof(*secs[seccnt].secs));
+                secs[seccnt].secs[0].sec = &infiles[i].shdrs[n];
+                secs[seccnt].secs[0].file = &infiles[i];
 
                 seccnt++;
 
@@ -352,29 +410,280 @@ void check_collisions() {
     /* free unneeded memory */
     xrealloc(secs, seccnt * sizeof(sec_def));
 
-    /* output final list of headers */
+    /* output final list of section headers */
     for (int n = 0; n < seccnt; n++) {
-        /* TODO on release, kill program here */
-        if (!syms[n].defs)
-            msg("UNDEFINED SYMBOL: '%s'", syms[n].name);
-
-        if (syms[n].defs > 1) {
-            /* TODO look for the types and check for collisions here */
-            for (int k = 0; k < syms[n].symcnt; k++) {
-            msg("REDEFINED SYMBOL: '%s', DEFINED %d TIMES", syms[n].name, syms[n].defs);
-            }
-        }
+        msg("section %s", secs[n].name);
     }
 }
 
 void create_exec(char* filename) {
+    msg("WRITING FILE");
+
+    /* calculate sub section offsets to merge sections */
+    Elf64_Addr addr_counter = 0x20000000;
+    for (int n = 0; n < seccnt; n++) {
+        msg("calculating alignment and offset for section: '%s'", secs[n].name);
+        /* find largest alignment */
+        size_t alignment_index = 0;
+        for (int i = 0; i < secs[n].seccnt; i++) {
+            if (secs[n].secs[i].sec->sh_addralign >
+                    secs[n].secs[alignment_index].sec->sh_addralign)
+                alignment_index = i;
+        }
+
+        secs[n].secs[alignment_index].sec->sh_addralign = 0x1000;
+        /* align section to alignment of largest alignment */
+        secs[n].align = secs[n].secs[alignment_index].sec->sh_addralign;
+        msg("secs align: 0x%x", secs[n].align);
+        secs[n].secs[alignment_index].offset = 0;
+        secs[n].memory_size = secs[n].secs[alignment_index].sec->sh_size;
+
+        for (int i = 0; i < secs[n].seccnt; i++) {
+            if (i == alignment_index)
+                continue;
+            secs[n].secs[i].offset = secs[n].memory_size + secs[n].secs[i].sec->sh_addralign
+                - (secs[n].memory_size % secs[n].secs[i].sec->sh_addralign);
+            secs[n].memory_size = secs[n].secs[i].offset + secs[n].secs[i].sec->sh_size;
+        }
+
+        for (int i = 0; i < secs[n].seccnt; i++) {
+            if (secs[n].secs[i].offset &&
+                    secs[n].secs[i].sec->sh_addr % secs[n].secs[i].offset)
+                die("failed alignment");
+        }
+
+        /* TODO allow setting custom addr here */
+        secs[n].addr = addr_counter + secs[n].align - (addr_counter % secs[n].align);
+        addr_counter = secs[n].addr + secs[n].memory_size;
+    }
+
+    /* allocate memory for each section */
+    /* NOTE doesn't do special stuff for BSS sections */
+    msg("allocating memory for sections");
+    for (int n = 0; n < seccnt; n++) {
+        xmalloc(secs[n].memory, secs[n].memory_size);
+    }
+
+    /* read from file to memory */
+    msg("reading sections into memory");
+    for (int n = 0; n < seccnt; n++) {
+        for (int i = 0; i < secs[n].seccnt; i++) {
+            fseek(secs[n].secs[i].file->fp,
+                    secs[n].secs[i].sec->sh_offset,
+                    SEEK_SET);
+            xfread(secs[n].memory + secs[n].secs[i].offset,
+                    secs[n].secs[i].sec->sh_size,
+                    secs[n].secs[i].file->fp);
+        }
+    }
+
+    /* TODO resolve symbols and fill out relocation entries */
+    /* TODO make rela entries for each section (possible with hash table) */
+    msg("performing relocations");
+    for (int n = 0; n < seccnt; n++) {
+        for (int i = 0; i < secs[n].seccnt; i++) {
+            /* REMEMBER THAT ADDRESSES FOR SECTIONS ARE FUCKED AND NEED TO BE RESOLVED */
+            for (int k = 0; k < secs[n].secs[i].file->relcnt; k++) {
+                /* TODO copy rela code and remove addend cases */
+            }
+            for (int k = 0; k < secs[n].secs[i].file->relacnt; k++) {
+                elf_file* defined_file;
+                Elf64_Sym* defined_sym;
+                Elf64_Rela* rela = &secs[n].secs[i].file->relas[k];
+                uint8_t* addr = (secs[n].memory + secs[n].secs[i].offset
+                 + rela->r_offset);
+                char* symname =
+                    &secs[n].secs[i].file->symstr[
+                    secs[n].secs[i].file->syms[ELF64_R_SYM(rela->r_info)].st_name];
+
+                /* URGENT TODO improve sym_def and use it instead */
+                /* TODO respect wish for symbols to be private, overidden etc */
+                /*     instead of taking the first defined symbol */
+                msg("correcting relative symbol values");
+                for (int x = 0; x < infilecnt; x++) {
+                    int match = -1;
+                    for (int y = 0; y < infiles[x].symcnt; y++) {
+                        if (!strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname))
+                                match = y;
+                    }
+                    if (match != -1 && infiles[x].syms[match].st_shndx != SHN_UNDEF) {
+                        defined_file = &infiles[x];
+                        defined_sym = &infiles[x].syms[match];
+                        if (defined_sym->st_shndx != SHN_ABS) {
+                            uint8_t found = 0;
+                            for (int y = 0; y < seccnt; y++) {
+                                for (int s = 0; s < secs[y].seccnt; s++) {
+                                    if (secs[y].secs[s].file == defined_file &&
+                                            secs[y].secs[s].sec ==
+                                            &defined_file->shdrs[defined_sym->st_shndx]
+                                            ) {
+                                        msg("adding 0x%lx to value %lx of sym %s",
+                                                secs[y].secs[s].offset,
+                                                defined_sym->st_value +
+                                                secs[y].addr,
+                                                symname);
+                                        found = 1;
+                                        defined_sym->st_value += secs[y].secs[s].offset + secs[y].addr;
+                                        /* find entry point */
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!found)
+                                die("symbol '%s' lacks section definition", symname);
+                        }
+                    }
+                }
+
+                /* TODO calculate using offset and address of section */
+                Elf64_Addr value = defined_sym->st_value;
+
+                uint64_t final_val;
+                uint8_t val_size;
+
+                switch (ELF64_R_TYPE(rela->r_info)) {
+                    case R_X86_64_NONE:
+                        msg("NONE relocation type... WHY???");
+                        break;
+                    case R_X86_64_32:
+                        val_size = 32;
+                        final_val = value + rela->r_addend;
+                        break;
+                    case R_X86_64_64:
+                        val_size = 64;
+                        final_val = value + rela->r_addend;
+                        break;
+                    case R_X86_64_PC32:
+                        val_size = 32;
+                        msg("%lx, %lx, %lx", value, rela->r_addend, (rela->r_offset + secs[n].secs[i].offset));
+                        final_val = value + rela->r_addend - (rela->r_offset + secs[n].secs[i].offset);
+                        break;
+                    default:
+                        die("Unsupported relocation type");
+                }
+
+                msg("relocating '%s' of size %lu to 0x%lx", symname, val_size, final_val);
+                switch (val_size) {
+                    case 8:
+                        *(uint8_t*)addr = final_val;
+                        break;
+                    case 16:
+                        *(uint16_t*)addr = final_val;
+                        break;
+                    case 32:
+                        *(uint32_t*)addr = final_val;
+                        break;
+                    case 64:
+                        *(uint16_t*)addr = final_val;
+                        break;
+                }
+            }
+        }
+    }
+
+    /* TODO tidy up this */
+    msg("finding start point");
+    char* symname = START_IDENT;
+    for (int x = 0; x < infilecnt; x++) {
+        int match = -1;
+        for (int y = 0; y < infiles[x].symcnt; y++) {
+            if (!strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname))
+                    match = y;
+        }
+        if (match != -1 && infiles[x].syms[match].st_shndx != SHN_UNDEF) {
+            elf_file* defined_file = &infiles[x];
+            Elf64_Sym* defined_sym = &infiles[x].syms[match];
+            if (defined_sym->st_shndx != SHN_ABS) {
+                uint8_t found = 0;
+                for (int y = 0; y < seccnt; y++) {
+                    for (int s = 0; s < secs[y].seccnt; s++) {
+                        if (secs[y].secs[s].file == defined_file &&
+                                secs[y].secs[s].sec ==
+                                &defined_file->shdrs[defined_sym->st_shndx]
+                                ) {
+                            msg("adding 0x%lx to value %lx of sym %s",
+                                    secs[y].secs[s].offset,
+                                    defined_sym->st_value +
+                                    secs[y].addr,
+                                    symname);
+                            found = 1;
+                            defined_sym->st_value += secs[y].secs[s].offset + secs[y].addr;
+                            entry_point = defined_sym->st_value;
+                            /* find entry point */
+                            break;
+                        }
+                    }
+                }
+                if (!found)
+                    die("symbol '%s' lacks section definition", symname);
+            }
+        }
+    }
+
+    msg("creating program headers");
+    Elf64_Ehdr ehdr;
+
+    ehdr.e_ident[EI_MAG0] = 0x7f;
+    ehdr.e_ident[EI_MAG1] = 'E';
+    ehdr.e_ident[EI_MAG2] = 'L';
+    ehdr.e_ident[EI_MAG3] = 'F';
+    ehdr.e_ident[EI_CLASS] = ELFCLASS64;
+    ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
+    ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+    ehdr.e_ident[EI_OSABI] = ELFOSABI_SYSV;
+    ehdr.e_ident[EI_ABIVERSION] = 0;
+
+    ehdr.e_type = ET_EXEC;
+    ehdr.e_machine = EM_X86_64;
+    ehdr.e_version = EV_CURRENT;
+    ehdr.e_entry = entry_point;
+    ehdr.e_phoff = sizeof(Elf64_Ehdr);
+    ehdr.e_shoff = 0;
+    ehdr.e_flags = 0;
+    ehdr.e_ehsize = sizeof(Elf64_Ehdr);
+    ehdr.e_phentsize = sizeof(Elf64_Phdr);
+    ehdr.e_phnum = seccnt; /* might change */
+    ehdr.e_shentsize = sizeof(Elf64_Shdr);
+    ehdr.e_shnum = 0;
+    ehdr.e_shstrndx = SHN_UNDEF;
+
+    Elf64_Phdr phdrs[seccnt];
+
+    size_t file_offset = sizeof(Elf64_Ehdr) + (sizeof(Elf64_Phdr) * seccnt);
+
+    for (int n = 0; n < seccnt; n++) {
+        secs[n].offset = file_offset;
+        file_offset += secs[n].memory_size;
+        phdrs[n].p_type = PT_LOAD;
+        phdrs[n].p_offset = secs[n].offset;
+        phdrs[n].p_offset = secs[n].offset;
+        phdrs[n].p_vaddr = secs[n].addr;
+        phdrs[n].p_paddr = secs[n].addr;
+        phdrs[n].p_align = secs[n].align;
+        phdrs[n].p_flags = secs[n].p_flags;
+        phdrs[n].p_filesz = secs[n].memory_size;
+        phdrs[n].p_memsz = secs[n].memory_size;
+    }
+
     FILE* outfp = fopen(filename, "wb");
 
     if (!outfp)
         die("Unable to start writing to file '%s'", filename);
 
-    Elf64_Phdr* phdrs;
-    size_t phdrcnt = 0;
+    fwrite(&ehdr, 1, sizeof(Elf64_Ehdr), outfp);
+    fwrite(phdrs, 1, sizeof(Elf64_Phdr) * seccnt, outfp);
+    for (int n = 0; n < seccnt; n++) {
+        /* shouldn't be neccessary */
+        msg("section %d, offset %d, file offset %d", seccnt, secs[n].offset
+                , ftell(outfp));
+        fwrite(secs[n].memory, 1, secs[n].memory_size, outfp);
+    }
 
-    /* TODO move sections, create program header */
+#ifdef UNIX
+    chmod(filename, S_IRUSR | S_IWUSR | S_IXUSR |
+            S_IRGRP | S_IWGRP | S_IXGRP |
+            S_IROTH | S_IWOTH | S_IXOTH );
+#endif
+
+    fclose(outfp);
 }

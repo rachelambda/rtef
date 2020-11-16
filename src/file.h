@@ -33,6 +33,7 @@ typedef struct {
     char* symstr;
 } elf_file;
 
+/* struct used for collecting symbol definitions for merging */
 typedef struct {
     char* name;
     size_t defs;
@@ -40,11 +41,31 @@ typedef struct {
     size_t symcnt;
 } sym_def;
 
+/* struct used for collecting section headers for merging */
 typedef struct {
     char* name;
-    Elf64_Shdr** secs;
+
+    struct {
+        Elf64_Shdr* sec;
+        size_t offset;
+
+        /* THIS CURRENTLY ASSUMES ALL RELAS ARE PART OF A SINGLE .TEXT */
+        elf_file* file;
+    }* secs;
     size_t seccnt;
+
+    size_t offset;
+    uint64_t align;
+
+    Elf64_Addr addr;
+
+    size_t memory_size;
+    uint8_t* memory;
+
+    /* permission flags for section, used for creating program header */
+    uint32_t p_flags;
 } sec_def;
+
 /* get the endian of a file */
 #define F_ENDIAN(f) f.ehdr.e_ident[EI_DATA]
 /* get the endian of a file pointer */
