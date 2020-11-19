@@ -217,7 +217,7 @@ void check_collisions() {
         infiles[i].relacnt = relabytes / sizeof(Elf64_Rela);
 
         xmalloc(infiles[i].relsecs, infiles[i].relcnt * sizeof(char*));
-        xmalloc(infiles[i].relasecs, infiles[i].relcnt * sizeof(char*));
+        xmalloc(infiles[i].relasecs, infiles[i].relacnt * sizeof(char*));
 
         symcnt = 0;
         size_t relcnt = 0;
@@ -241,7 +241,7 @@ void check_collisions() {
                     char* relsec = strrchr(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
                             '.');
                     msg("RELSEC: '%s'", relsec);
-                    for (int k = old_relcnt; k < relcnt; k++)
+                    for (int k = old_relcnt; k < infiles[i].relcnt; k++)
                         infiles[i].relsecs[k] = relsec;
                     break;
                 case SHT_RELA:
@@ -253,7 +253,7 @@ void check_collisions() {
                     char* relasec = strrchr(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
                             '.');
                     msg("RELASEC: '%s'", relasec);
-                    for (int k = old_relacnt; k < relacnt; k++)
+                    for (int k = old_relacnt; k < infiles[i].relacnt; k++)
                         infiles[i].relasecs[k] = relasec;
                     break;
             }
@@ -526,9 +526,11 @@ void create_exec(char* filename) {
                                 !strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname)) {
                             size_t sec_index = infiles[x].syms[y].st_shndx;
                             Elf64_Addr st_val = infiles[x].syms[y].st_value;
-                            Elf64_Addr addr = infiles[x].sec_defs[sec_index]->addr;
-                            Elf64_Addr offset = infiles[x].sec_defs[sec_index]->secs[
-                                    infiles[x].sec_indecies[sec_index]].offset;
+                            Elf64_Addr addr = sec_index == SHN_ABS ? 0 :
+                                infiles[x].sec_defs[sec_index]->addr;
+                            Elf64_Addr offset = sec_index == SHN_ABS ? 0 :
+                                infiles[x].sec_defs[sec_index]->secs[
+                                        infiles[x].sec_indecies[sec_index]].offset;
                             if (ELF64_ST_TYPE(infiles[x].syms[y].st_info) == STT_SECTION) {
                                 /* compare names of sections */
                                 msg("defined relative to %s", infiles[x].sec_defs[sec_index]->name);
