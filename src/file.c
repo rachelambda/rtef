@@ -211,9 +211,14 @@ void check_collisions() {
         xmalloc(infiles[i].syms, symbytes);
         xmalloc(infiles[i].rels, relbytes);
         xmalloc(infiles[i].relas, relabytes);
+
         infiles[i].symcnt = symbytes / sizeof(Elf64_Sym);
         infiles[i].relcnt = relbytes / sizeof(Elf64_Rel);
         infiles[i].relacnt = relabytes / sizeof(Elf64_Rela);
+
+        xmalloc(infiles[i].relsecs, infiles[i].relcnt * sizeof(char*));
+        xmalloc(infiles[i].relasecs, infiles[i].relcnt * sizeof(char*));
+
         symcnt = 0;
         size_t relcnt = 0;
         size_t relacnt = 0;
@@ -225,19 +230,31 @@ void check_collisions() {
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
                     xfread(&infiles[i].syms[symcnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    symcnt++;
+                    symcnt += infiles[i].shdrs[n].sh_size / sizeof(Elf64_Sym);
                     break;
                 case SHT_REL:
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
                     xfread(&infiles[i].rels[relcnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    relcnt++;
+                    size_t old_relcnt = relcnt;
+                    relcnt += infiles[i].shdrs[n].sh_size / sizeof(Elf64_Rel);
+                    char* relsec = strrchr(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                            '.');
+                    msg("RELSEC: '%s'", relsec);
+                    for (int k = old_relcnt; k < relcnt; k++)
+                        infiles[i].relsecs[k] = relsec;
                     break;
                 case SHT_RELA:
                     fseek(infiles[i].fp, infiles[i].shdrs[n].sh_offset, SEEK_SET);
                     xfread(&infiles[i].relas[relacnt], infiles[i].shdrs[n].sh_size,
                             infiles[i].fp);
-                    relacnt++;
+                    size_t old_relacnt = relacnt;
+                    relacnt += infiles[i].shdrs[n].sh_size / sizeof(Elf64_Rela);
+                    char* relasec = strrchr(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
+                            '.');
+                    msg("RELASEC: '%s'", relasec);
+                    for (int k = old_relacnt; k < relacnt; k++)
+                        infiles[i].relasecs[k] = relasec;
                     break;
             }
         }
@@ -252,7 +269,7 @@ void check_collisions() {
         /* TODO remove all debugging prints */
         msg("printing syms");
         for (int n = STN_UNDEF + 1; n < infiles[i].symcnt; n++) {
-            puts(&infiles[i].symstr[infiles[i].syms[n].st_name]);
+            msg(&infiles[i].symstr[infiles[i].syms[n].st_name]);
             if (infiles[i].syms[n].st_shndx == SHN_UNDEF)
                 msg("UNDEF");
         }
@@ -349,17 +366,12 @@ void check_collisions() {
 
     /* TODO add support for other sections */
     for (int i = 0; i < infilecnt; i++) {
+        xmalloc(infiles[i].sec_indecies, infiles[i].ehdr.e_shnum * sizeof(size_t));
+        xmalloc(infiles[i].sec_defs, infiles[i].ehdr.e_shnum * sizeof(sec_def*));
         for (int n = SHN_UNDEF + 1; n < infiles[i].ehdr.e_shnum; n++) {
-            if(!strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
-                    ".symtab") ||
-                !strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
-                    ".strtab") ||
-                !strcmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
-                    ".shstrtab") ||
-                !strncmp(&infiles[i].secstr[infiles[i].shdrs[n].sh_name],
-                    ".rel", 4)) {
+            if(infiles[i].shdrs[n].sh_type != SHT_NOBITS
+                    && infiles[i].shdrs[n].sh_type != SHT_PROGBITS)
                 continue;
-            }
             uint8_t new = 1;
             for (int k = 0; k < seccnt; k++) {
                 /* if section is already defined */
@@ -378,6 +390,9 @@ void check_collisions() {
                     xrealloc(secs[k].secs, sizeof(*secs[k].secs) * secs[k].seccnt);
                     secs[k].secs[secs[k].seccnt - 1].sec = &infiles[i].shdrs[n];
                     secs[k].secs[secs[k].seccnt - 1].file = &infiles[i];
+
+                    infiles[i].sec_defs[n] = &secs[k];
+                    infiles[i].sec_indecies[n] = secs[k].seccnt - 1;
 
                     new = 0;
                 }
@@ -401,7 +416,11 @@ void check_collisions() {
                 secs[seccnt].secs[0].sec = &infiles[i].shdrs[n];
                 secs[seccnt].secs[0].file = &infiles[i];
 
+                infiles[i].sec_defs[n] = &secs[seccnt];
+                infiles[i].sec_indecies[n] = 0;
+
                 seccnt++;
+
 
             }
         }
@@ -420,7 +439,7 @@ void create_exec(char* filename) {
     msg("WRITING FILE");
 
     /* calculate sub section offsets to merge sections */
-    Elf64_Addr addr_counter = 0x20000000;
+    Elf64_Addr addr_counter = 0x20000000; /* TODO better way of handelin addrs */
     for (int n = 0; n < seccnt; n++) {
         msg("calculating alignment and offset for section: '%s'", secs[n].name);
         /* find largest alignment */
@@ -431,7 +450,8 @@ void create_exec(char* filename) {
                 alignment_index = i;
         }
 
-        secs[n].secs[alignment_index].sec->sh_addralign = 0x1000;
+        if (secs[n].secs[alignment_index].sec->sh_addralign < 0x1000)
+            secs[n].secs[alignment_index].sec->sh_addralign = 0x1000;
         /* align section to alignment of largest alignment */
         secs[n].align = secs[n].secs[alignment_index].sec->sh_addralign;
         msg("secs align: 0x%x", secs[n].align);
@@ -482,11 +502,11 @@ void create_exec(char* filename) {
     msg("performing relocations");
     for (int n = 0; n < seccnt; n++) {
         for (int i = 0; i < secs[n].seccnt; i++) {
-            /* REMEMBER THAT ADDRESSES FOR SECTIONS ARE FUCKED AND NEED TO BE RESOLVED */
-            for (int k = 0; k < secs[n].secs[i].file->relcnt; k++) {
-                /* TODO copy rela code and remove addend cases */
-            }
+            msg("relocations for section '%s'", secs[n].name);
             for (int k = 0; k < secs[n].secs[i].file->relacnt; k++) {
+                if (!strcmp(secs[n].secs[i].file->relasecs[k], secs[n].name))
+                        msg("matching relocation file"); else continue;
+                Elf64_Addr value;
                 elf_file* defined_file;
                 Elf64_Sym* defined_sym;
                 Elf64_Rela* rela = &secs[n].secs[i].file->relas[k];
@@ -496,47 +516,43 @@ void create_exec(char* filename) {
                     &secs[n].secs[i].file->symstr[
                     secs[n].secs[i].file->syms[ELF64_R_SYM(rela->r_info)].st_name];
 
-                /* URGENT TODO improve sym_def and use it instead */
-                /* TODO respect wish for symbols to be private, overidden etc */
-                /*     instead of taking the first defined symbol */
-                msg("correcting relative symbol values");
+                char* secname =
+                    &secs[n].secs[i].file->secstr[secs[n].secs[i].file->shdrs[
+                    secs[n].secs[i].file->syms[ELF64_R_SYM(rela->r_info)].st_shndx].sh_name];
+
                 for (int x = 0; x < infilecnt; x++) {
-                    int match = -1;
                     for (int y = 0; y < infiles[x].symcnt; y++) {
-                        if (!strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname))
-                                match = y;
-                    }
-                    if (match != -1 && infiles[x].syms[match].st_shndx != SHN_UNDEF) {
-                        defined_file = &infiles[x];
-                        defined_sym = &infiles[x].syms[match];
-                        if (defined_sym->st_shndx != SHN_ABS) {
-                            uint8_t found = 0;
-                            for (int y = 0; y < seccnt; y++) {
-                                for (int s = 0; s < secs[y].seccnt; s++) {
-                                    if (secs[y].secs[s].file == defined_file &&
-                                            secs[y].secs[s].sec ==
-                                            &defined_file->shdrs[defined_sym->st_shndx]
-                                            ) {
-                                        msg("adding 0x%lx to value %lx of sym %s",
-                                                secs[y].secs[s].offset,
-                                                defined_sym->st_value +
-                                                secs[y].addr,
-                                                symname);
-                                        found = 1;
-                                        defined_sym->st_value += secs[y].secs[s].offset + secs[y].addr;
-                                        /* find entry point */
-                                        break;
-                                    }
-                                }
+                        if (SYM_IS_DEF(infiles[x].syms[y]) &&
+                                !strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname)) {
+                            size_t sec_index = infiles[x].syms[y].st_shndx;
+                            Elf64_Addr st_val = infiles[x].syms[y].st_value;
+                            Elf64_Addr addr = infiles[x].sec_defs[sec_index]->addr;
+                            Elf64_Addr offset = infiles[x].sec_defs[sec_index]->secs[
+                                    infiles[x].sec_indecies[sec_index]].offset;
+                            if (ELF64_ST_TYPE(infiles[x].syms[y].st_info) == STT_SECTION) {
+                                /* compare names of sections */
+                                msg("defined relative to %s", infiles[x].sec_defs[sec_index]->name);
+                                if (strcmp(&infiles[x].secstr[infiles[x].shdrs[sec_index].sh_name],
+                                            secname))
+                                        continue;
+
+                                /* not sure if val is needed here */
+                                value = addr + offset + st_val;
+
+                                /* set x to break both loops */
+                                x = infilecnt;
+                                break;
+
+                            } else if (infiles[x].syms[y].st_shndx == SHN_ABS) {
+                                /* just add the value */
+                                value = st_val;
+                            } else {
+                                /* relocate based on section offsets */
+                                value = st_val + addr + offset;
                             }
-                            if (!found)
-                                die("symbol '%s' lacks section definition", symname);
                         }
                     }
                 }
-
-                /* TODO calculate using offset and address of section */
-                Elf64_Addr value = defined_sym->st_value;
 
                 uint64_t final_val;
                 uint8_t val_size;
@@ -545,24 +561,28 @@ void create_exec(char* filename) {
                     case R_X86_64_NONE:
                         msg("NONE relocation type... WHY???");
                         break;
-                    case R_X86_64_32:
-                        val_size = 32;
-                        final_val = value + rela->r_addend;
+                    case R_X86_64_32S:
+                        val_size = 64;
+                        final_val = ((uint32_t)value >> 31) ? ((uint32_t)value | (uint64_t)0xffffffff00000000) + rela->r_addend :
+                            (uint32_t)value + rela->r_addend;
                         break;
+                    case R_X86_64_32:
                     case R_X86_64_64:
+                        msg("R_X86_64_64");
                         val_size = 64;
                         final_val = value + rela->r_addend;
                         break;
                     case R_X86_64_PC32:
                         val_size = 32;
-                        msg("%lx, %lx, %lx", value, rela->r_addend, (rela->r_offset + secs[n].secs[i].offset));
-                        final_val = value + rela->r_addend - (rela->r_offset + secs[n].secs[i].offset);
+                        msg("R_X86_64_PC32, 0x%lx, %ld, 0x%lx", value, rela->r_addend, (rela->r_offset + secs[n].addr + secs[n].secs[i].offset));
+                        final_val = value + rela->r_addend - (rela->r_offset + secs[n].addr + secs[n].secs[i].offset);
                         break;
                     default:
                         die("Unsupported relocation type");
                 }
 
                 msg("relocating '%s' of size %lu to 0x%lx", symname, val_size, final_val);
+                msg("addr: 0x%lx", *(uint64_t*)addr);
                 switch (val_size) {
                     case 8:
                         *(uint8_t*)addr = final_val;
@@ -574,9 +594,10 @@ void create_exec(char* filename) {
                         *(uint32_t*)addr = final_val;
                         break;
                     case 64:
-                        *(uint16_t*)addr = final_val;
+                        *(uint64_t*)addr = final_val;
                         break;
                 }
+                msg("addr: 0x%lx", *(uint64_t*)addr);
             }
         }
     }
@@ -601,7 +622,7 @@ void create_exec(char* filename) {
                                 secs[y].secs[s].sec ==
                                 &defined_file->shdrs[defined_sym->st_shndx]
                                 ) {
-                            msg("adding 0x%lx to value %lx of sym %s",
+                            msg("adding 0x%lx to value %lx of sym '%s'",
                                     secs[y].secs[s].offset,
                                     defined_sym->st_value +
                                     secs[y].addr,
@@ -652,17 +673,21 @@ void create_exec(char* filename) {
     size_t file_offset = sizeof(Elf64_Ehdr) + (sizeof(Elf64_Phdr) * seccnt);
 
     for (int n = 0; n < seccnt; n++) {
-        secs[n].offset = file_offset;
-        file_offset += secs[n].memory_size;
+        /* TODO replace with */ 
+        /*     dq 0x400000 + _start    ;   p_vaddr */
+        /* method to save space */
+        secs[n].offset = file_offset + secs[n].align - (file_offset % secs[n].align);
+        file_offset = secs[n].offset + secs[n].memory_size;
         phdrs[n].p_type = PT_LOAD;
         phdrs[n].p_offset = secs[n].offset;
         phdrs[n].p_offset = secs[n].offset;
         phdrs[n].p_vaddr = secs[n].addr;
-        phdrs[n].p_paddr = secs[n].addr;
+        phdrs[n].p_paddr = 0;
         phdrs[n].p_align = secs[n].align;
         phdrs[n].p_flags = secs[n].p_flags;
         phdrs[n].p_filesz = secs[n].memory_size;
         phdrs[n].p_memsz = secs[n].memory_size;
+        msg("section '%s' will be loaded at 0x%lx", secs[n].name, phdrs[n].p_vaddr);
     }
 
     FILE* outfp = fopen(filename, "wb");
@@ -674,8 +699,7 @@ void create_exec(char* filename) {
     fwrite(phdrs, 1, sizeof(Elf64_Phdr) * seccnt, outfp);
     for (int n = 0; n < seccnt; n++) {
         /* shouldn't be neccessary */
-        msg("section %d, offset %d, file offset %d", seccnt, secs[n].offset
-                , ftell(outfp));
+        fseek(outfp, secs[n].offset, SEEK_SET);
         fwrite(secs[n].memory, 1, secs[n].memory_size, outfp);
     }
 

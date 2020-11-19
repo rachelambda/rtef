@@ -4,13 +4,19 @@
 #include <stdio.h>
 #include <elf.h>
 
-typedef struct {
+struct sec_def;
+struct elf_file;
+
+typedef struct elf_file {
     /* file pointer to object file */
     FILE* fp;
     /* file header */
     Elf64_Ehdr ehdr;
     /* section headers */
     Elf64_Shdr* shdrs;
+    /* section definittions for shdrs, and indecies */
+    size_t* sec_indecies;
+    struct sec_def** sec_defs;
     /* section string tab section header */
     Elf64_Shdr secstrtab;
     /* Symbol string tab section header */
@@ -21,10 +27,14 @@ typedef struct {
     size_t symcnt;
     /* relocation entries */
     Elf64_Rel* rels;
+    /* relocation addend entries correspondin sections */
+    char** relsecs;
     /* relocation entry count */
     size_t relcnt;
     /* relocation addend entries */
     Elf64_Rela* relas;
+    /* relocation addend entries correspondin sections */
+    char** relasecs;
     /* relocation addend entry count */
     size_t relacnt;
     /* contents of section string table section */
@@ -42,7 +52,7 @@ typedef struct {
 } sym_def;
 
 /* struct used for collecting section headers for merging */
-typedef struct {
+typedef struct sec_def {
     char* name;
 
     struct {
@@ -50,7 +60,7 @@ typedef struct {
         size_t offset;
 
         /* THIS CURRENTLY ASSUMES ALL RELAS ARE PART OF A SINGLE .TEXT */
-        elf_file* file;
+        struct elf_file* file;
     }* secs;
     size_t seccnt;
 
