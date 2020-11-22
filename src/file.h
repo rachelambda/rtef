@@ -74,6 +74,7 @@ typedef struct sec_def {
 
     /* permission flags for section, used for creating program header */
     uint32_t p_flags;
+    uint32_t sh_type;
 } sec_def;
 
 /* get the endian of a file */

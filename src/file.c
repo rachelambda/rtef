@@ -374,13 +374,15 @@ void check_collisions() {
                 continue;
             uint8_t new = 1;
             for (int k = 0; k < seccnt; k++) {
+                /* TODO hashmap here */
                 /* if section is already defined */
-                /* since we can only have .text, .bss or .data here */
-                /* only one char needs to be compared */
                 if (!strcmp(secs[k].name,
                             &infiles[i].secstr[infiles[i].shdrs[n].sh_name])) {
 
                     secs[k].seccnt++;
+
+                    if (infiles[i].shdrs[n].sh_type != secs[k].sh_type)
+                        die("section types don't match for section '%s'", secs[k].name);
 
                     if (infiles[i].shdrs[n].sh_flags & SHF_WRITE)
                         secs[k].p_flags |= PF_W;
@@ -403,14 +405,13 @@ void check_collisions() {
 
                 secs[seccnt].seccnt = 1;
 
-                /* for now assume all sections can be read, possibly add an option */
-                /* to disable this for specific sections in case you're working on */
-                /* firmware for example */
                 secs[seccnt].p_flags = PF_R;
                 if (infiles[i].shdrs[n].sh_flags & SHF_WRITE)
                     secs[seccnt].p_flags |= PF_W;
                 if (infiles[i].shdrs[n].sh_flags & SHF_EXECINSTR)
                     secs[seccnt].p_flags |= PF_X;
+
+                secs[seccnt].sh_type = infiles[i].shdrs[n].sh_type;
 
                 xmalloc(secs[seccnt].secs, sizeof(*secs[seccnt].secs));
                 secs[seccnt].secs[0].sec = &infiles[i].shdrs[n];
@@ -481,19 +482,23 @@ void create_exec(char* filename) {
     /* NOTE doesn't do special stuff for BSS sections */
     msg("allocating memory for sections");
     for (int n = 0; n < seccnt; n++) {
-        xmalloc(secs[n].memory, secs[n].memory_size);
+        if (secs[n].sh_type != SHT_NOBITS) {
+            xmalloc(secs[n].memory, secs[n].memory_size);
+        }
     }
 
     /* read from file to memory */
     msg("reading sections into memory");
     for (int n = 0; n < seccnt; n++) {
         for (int i = 0; i < secs[n].seccnt; i++) {
-            fseek(secs[n].secs[i].file->fp,
-                    secs[n].secs[i].sec->sh_offset,
-                    SEEK_SET);
-            xfread(secs[n].memory + secs[n].secs[i].offset,
-                    secs[n].secs[i].sec->sh_size,
-                    secs[n].secs[i].file->fp);
+            if (secs[n].sh_type != SHT_NOBITS) {
+                fseek(secs[n].secs[i].file->fp,
+                        secs[n].secs[i].sec->sh_offset,
+                        SEEK_SET);
+                xfread(secs[n].memory + secs[n].secs[i].offset,
+                        secs[n].secs[i].sec->sh_size,
+                        secs[n].secs[i].file->fp);
+            }
         }
     }
 
@@ -580,7 +585,7 @@ void create_exec(char* filename) {
                         final_val = value + rela->r_addend - (rela->r_offset + secs[n].addr + secs[n].secs[i].offset);
                         break;
                     default:
-                        die("Unsupported relocation type");
+                        die("Unsupported relocation type: 0x%x", ELF64_R_TYPE(rela->r_info));
                 }
 
                 msg("relocating '%s' of size %lu to 0x%lx", symname, val_size, final_val);
@@ -606,11 +611,10 @@ void create_exec(char* filename) {
 
     /* TODO tidy up this */
     msg("finding start point");
-    char* symname = START_IDENT;
     for (int x = 0; x < infilecnt; x++) {
         int match = -1;
         for (int y = 0; y < infiles[x].symcnt; y++) {
-            if (!strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname))
+            if (!strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], START_IDENT))
                     match = y;
         }
         if (match != -1 && infiles[x].syms[match].st_shndx != SHN_UNDEF) {
@@ -628,7 +632,7 @@ void create_exec(char* filename) {
                                     secs[y].secs[s].offset,
                                     defined_sym->st_value +
                                     secs[y].addr,
-                                    symname);
+                                    START_IDENT);
                             found = 1;
                             defined_sym->st_value += secs[y].secs[s].offset + secs[y].addr;
                             entry_point = defined_sym->st_value;
@@ -638,7 +642,7 @@ void create_exec(char* filename) {
                     }
                 }
                 if (!found)
-                    die("symbol '%s' lacks section definition", symname);
+                    die("symbol '%s' lacks section definition", START_IDENT);
             }
         }
     }
@@ -675,11 +679,11 @@ void create_exec(char* filename) {
     size_t file_offset = sizeof(Elf64_Ehdr) + (sizeof(Elf64_Phdr) * seccnt);
 
     for (int n = 0; n < seccnt; n++) {
-        /* TODO replace with */ 
-        /*     dq 0x400000 + _start    ;   p_vaddr */
-        /* method to save space */
-        secs[n].offset = file_offset + secs[n].align - (file_offset % secs[n].align);
-        file_offset = secs[n].offset + secs[n].memory_size;
+        /* prevent SHT_NOBITS types from taking up space in the file */
+        if (secs[n].sh_type != SHT_NOBITS) {
+            secs[n].offset = file_offset + secs[n].align - (file_offset % secs[n].align);
+            file_offset = secs[n].offset + secs[n].memory_size;
+        }
         phdrs[n].p_type = PT_LOAD;
         phdrs[n].p_offset = secs[n].offset;
         phdrs[n].p_offset = secs[n].offset;
@@ -700,9 +704,10 @@ void create_exec(char* filename) {
     fwrite(&ehdr, 1, sizeof(Elf64_Ehdr), outfp);
     fwrite(phdrs, 1, sizeof(Elf64_Phdr) * seccnt, outfp);
     for (int n = 0; n < seccnt; n++) {
-        /* shouldn't be neccessary */
-        fseek(outfp, secs[n].offset, SEEK_SET);
-        fwrite(secs[n].memory, 1, secs[n].memory_size, outfp);
+        if (secs[n].sh_type != SHT_NOBITS) {
+            fseek(outfp, secs[n].offset, SEEK_SET);
+            fwrite(secs[n].memory, 1, secs[n].memory_size, outfp);
+        }
     }
 
 #ifdef UNIX
