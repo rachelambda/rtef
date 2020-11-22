@@ -44,7 +44,7 @@ realloc
 vprintf
 ```
 
-An elf.h implementation for your platform (GNU elf.h for Linux and OpenBSD elf.h for OpenBSD used in development process)
+An elf.h implementation for your platform (GNU elf.h for Linux used in development process)
 
 A C compiler (tcc, gcc and clang used in development process)
 
