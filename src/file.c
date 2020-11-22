@@ -526,9 +526,9 @@ void create_exec(char* filename) {
                                 !strcmp(&infiles[x].symstr[infiles[x].syms[y].st_name], symname)) {
                             size_t sec_index = infiles[x].syms[y].st_shndx;
                             Elf64_Addr st_val = infiles[x].syms[y].st_value;
-                            Elf64_Addr addr = sec_index == SHN_ABS ? 0 :
+                            Elf64_Addr addr = sec_index >= infiles[x].ehdr.e_shnum ? 0 :
                                 infiles[x].sec_defs[sec_index]->addr;
-                            Elf64_Addr offset = sec_index == SHN_ABS ? 0 :
+                            Elf64_Addr offset = sec_index >= infiles[x].ehdr.e_shnum ? 0 :
                                 infiles[x].sec_defs[sec_index]->secs[
                                         infiles[x].sec_indecies[sec_index]].offset;
                             if (ELF64_ST_TYPE(infiles[x].syms[y].st_info) == STT_SECTION) {
