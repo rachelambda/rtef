@@ -16,6 +16,8 @@ TODO
 
 ## Introduction
 
+[maybe remove the headers]
+
 ### Query
 
 What is the thinnest linker feature set required in order to produce a bootable kernel.
@@ -38,11 +40,11 @@ The purpose of this project is to design a program capable of ELF object file li
 
 During the compilation of a program from source code to machine code there are generally two steps.
 
-First the source files containing the code are compiled into object files by a compiler. These objects contain machine code, information about undefined symbols (such as a function defined in another file).
+First the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.
 
-These object files are then process by a linker who's job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these object into a file that the OS can load and the CPU can run.
+These object files are then processed by a linker who's job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these object into a file that the OS can load and the CPU can run.
 
-x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available registers and instructions. Different architectures might differ in features and will therefore have different linking processes. At the time of writing x86\_64 has been the dominant CPU architecture for multiple years.
+x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available registers and instructions. Different architectures might differ in features and will therefore have different linking processes. At the time of writing x86\_64 has been the dominant CPU architecture for many years.
 
 [NOTE: everything below (except for the PS4) is in the ELF spec]
 
@@ -54,7 +56,7 @@ At the beginning of an ELF file lies the ELF header, a header which describes th
 
 Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded at. Since program headers only describe execution they need only be present in executable files.
 
-Section headers describe the type of and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contains the name of the files sections and symbols. Symbol table entries describe symbols names, which sections they are defined relative to and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker. Section headers are not needed at execution and need only be present in object files.
+Section headers describe the type of and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contains the name of the files sections and symbols. Symbol table entries describe symbols names, which sections they are defined relative to, and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker. Section headers are not needed at execution and need only be present in object files.
 
 ## Process
 
