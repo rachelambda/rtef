@@ -38,6 +38,8 @@ The purpose of this project is to design a program capable of ELF object file li
 
 [TODO: find sources]
 
+When a computer runs a program the operating system must load an executable file into memory and tell the CPU to start running it. Many modern programing languages such as ruby for example are interpreted, which means that rather than executing the program itself the OS executes ruby which then runs the file. However, this process is quite slow and as such there is still a need to write compiled programs.
+
 During the compilation of a program from source code to machine code there are generally two steps.
 
 First the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.
