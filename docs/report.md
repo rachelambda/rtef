@@ -1,3 +1,5 @@
+# NOT FINAL. THIS VERSION IS UNFORMATED AND WILL BE REFORMATED ONCE LAREGLY FINISHED
+
 # What is the minimum amount of work needed by a linker to produce a bootable kernel
 
 NTI Gymnasiet Göteborg
@@ -12,7 +14,7 @@ Handledare: Sofie Kjellgren
 
 ## Table of Contents
 
-TODO
+[PLACEHOLDER]
 
 ## Introduction
 
@@ -48,17 +50,33 @@ At the beginning of an ELF file lies the ELF header, a header which describes th
 
 Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded at. Since program headers only describe execution they need only be present in executable files.[^ELFSPEC]
 
-Section headers describe the type of and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contains the name of the files sections and symbols. Symbol table entries describe symbols names, which sections they are defined relative to, and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker. Section headers are not needed at execution and need only be present in object files.[^ELFSPEC]
+Section headers describe the type of and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contains the name of the files sections and symbols. Symbol table entries describe symbols names, which sections they are defined relative to, and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker, as well as information regarding how to calculate the correct value. Section headers are not needed at execution and need only be present in object files.[^ELFSPEC]
 
 ## Process
 
-[program structure]
+The first action of the process was planning the general flow of the program as well as defining the required data structures.
 
-[program operation and used data structures]
+The following data structures were defined: elf\_file, a structure which contains all input data read from a file; sym\_def, a structure which contains all definitions of a single symbol; sec\_def, a structure which contains all definitions of a single section.
+
+It was determined that the program flow would begin with an optional argument handler, which has the job of parsing the arguments given to the program on the command line, in order to define input and output files, as well as letting the user specify additional options. In the final product this wasn't present as no options other than input and output files were implemented.
+
+Secondly the program runs a file validator, this ensures all input files are valid ELF files. In practice this was implemented by reading files ELF headers and checking their validity, as well as ensuring they targeted the correct platform (x86-64, in this case).
+
+Thirdly the program collects all information from the input files, in essence filling out all fields of the elf\_file, sym\_def and sec\_def data structures.
+
+Fourth the program calculates the memory address for each section in the output file by parsing the sec\_def data structures.
+
+Fifth the program resolves missing symbols in all files by looking at each elf\_file's relocation entries and then finding the matching sym\_def entry, which after a short calculation dependent on the relocation info resolves the value of the defined symbol.
+
+Sixth and ELF header and program headers are generated based on the values calculated in the fourth step.
+
+Finally the program writes all data to a file and marks it as executable.
 
 ### Issues
 
-[different types of relocation]
+Throughout the process there have been several issues. These were mostly caused by a lack of experience going into the project. For instance, it was initially planned to calculate section addresses after the symbol relocations. Though this is impossible due to some symbols being defined relative to the memory address of sections. Another example of this is the previously mentioned unimplemented first step. This was ultimately skipped as it turned out the program had no need for it.
+
+There were also issues with the used data structures as it was found they didn't contain enough information several times. This lead to having to add additional fields of information to the data structures and having to rewrite old code in order to write information to them.
 
 ## Results
 
