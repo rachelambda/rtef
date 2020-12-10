@@ -1,7 +1,7 @@
 ---
 title: rtef
 subtitle: relocatable to executable format
-author: David Samuelson
+author: David Samuelsson
 author-affiliation: NTI Johanneberg
 date: HT 2020-VT 2021
 abstract: |
