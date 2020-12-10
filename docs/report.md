@@ -200,7 +200,7 @@ Retrieved December 3, 2020, from [https://en.wikipedia.org/w/index.php?title=Exe
 ## Attachments
 
 test1.nasm
-```x86asm
+```nasm
 bits 64
 
 extern msg
@@ -222,7 +222,7 @@ _start:
 ```
 
 test2.nasm
-```x86asm
+```nasm
 bits 64
 
 global print:function
@@ -241,7 +241,7 @@ exit:
 ```
 
 test3.nasm
-```x86asm
+```nasm
 bits 64
 
 global msg
