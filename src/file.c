@@ -335,9 +335,6 @@ void check_collisions() {
         }
     }
 
-    /* free unneeded memory */
-    xrealloc(syms, symcnt * sizeof(sym_def));
-
     /* check collisions and stuff */
     for (int n = 0; n < symcnt; n++) {
         /* TODO on release, kill program here */
@@ -426,9 +423,6 @@ void check_collisions() {
             }
         }
     }
-
-    /* free unneeded memory */
-    xrealloc(secs, seccnt * sizeof(sec_def));
 
     /* output final list of section headers */
     for (int n = 0; n < seccnt; n++) {
@@ -580,9 +574,13 @@ void create_exec(char* filename) {
                         final_val = value + rela->r_addend;
                         break;
                     case R_X86_64_PC32:
+                    case R_X86_64_PLT32: /* treat plt as pc */
                         val_size = 32;
                         msg("R_X86_64_PC32, 0x%lx, %ld, 0x%lx", value, rela->r_addend, (rela->r_offset + secs[n].addr + secs[n].secs[i].offset));
                         final_val = value + rela->r_addend - (rela->r_offset + secs[n].addr + secs[n].secs[i].offset);
+                        break;
+                    case R_X86_64_GOTPCREL:
+                        die("GOT, todo");
                         break;
                     default:
                         die("Unsupported relocation type: 0x%x", ELF64_R_TYPE(rela->r_info));
@@ -685,7 +683,6 @@ void create_exec(char* filename) {
             file_offset = secs[n].offset + secs[n].memory_size;
         }
         phdrs[n].p_type = PT_LOAD;
-        phdrs[n].p_offset = secs[n].offset;
         phdrs[n].p_offset = secs[n].offset;
         phdrs[n].p_vaddr = secs[n].addr;
         phdrs[n].p_paddr = 0;
