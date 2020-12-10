@@ -6,7 +6,7 @@ author-affiliation: NTI Johanneberg
 date: HT 2020-VT 2021
 abstract: |
 
-    The aim of this report is to answer the query: what is the thinnest linker feature set required in order to produce a bootable kernel? In order to find out, a linker, dubbed rtef, was implemented in the C programming language. During research and implementation it was found that in order to produce a bootable kernel a linker needs to be able to read a configuration specifying section addresses, alignments and offsets; read any number of object files; merge the object files' sections; resolve the object files' symbols; and write an executable file.
+    The aim of this report is to answer the query: what is the thinnest linker feature set required in order to produce a bootable kernel? In order to find out a linker, dubbed rtef, was implemented in the C programming language. During research and implementation it was found that in order to produce a bootable kernel a linker needs to be able to read a configuration specifying section addresses, alignments and offsets; read any number of object files; merge the object files' sections; resolve the object files' symbols; and write an executable file.
 ...
 
 \newpage
