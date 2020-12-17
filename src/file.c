@@ -6,11 +6,10 @@
 #include "file.h"
 
 #define START_IDENT "_start"
-/* remove if not unix, is only used to mark file executable */
-#define UNIX
 
-#ifdef UNIX
-#include <sys/stat.h>
+#if defined(unix) || defined(__unix__) || defined(__unix)
+# define PLATFORM_UNIX
+# include <sys/stat.h>
 #endif
 
 /*
@@ -707,7 +706,7 @@ void create_exec(char* filename) {
         }
     }
 
-#ifdef UNIX
+#ifdef PLATFORM_UNIX
     chmod(filename, S_IRUSR | S_IWUSR | S_IXUSR |
             S_IRGRP | S_IWGRP | S_IXGRP |
             S_IROTH | S_IWOTH | S_IXOTH );
