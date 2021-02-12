@@ -1,11 +1,16 @@
-\documentclass[notitlepage]{report}
+\documentclass{article}
 
 \usepackage{authblk}
+\usepackage{caption}
+
+\usepackage[sorting=nty]{biblatex}
+\bibliography{bibliography}
+
+\usepackage[newfloat]{minted}
+\newenvironment{code}{\captionsetup{type=listing}}{}
+\SetupFloatingEnvironment{listing}{name=Source Code}
+
 \usepackage{titlesec}
-
-% TODO bibliography
-
-% Newline for each new section
 \newcommand{\sectionbreak}{\clearpage}
 
 \title{%
@@ -26,6 +31,7 @@ This report aims to answer the query: what is the thinnest linker feature set re
 \end{abstract}
 
 \tableofcontents
+\newpage
 
 \section{Introduction}
 
@@ -43,25 +49,25 @@ To limit the scope of this project, the program will only target the x86\_64 pro
 
 \subsection{Theory}
 
-When a computer runs a program the operating system must load an executable file into memory and tell the CPU to start running it. Many modern programming languages such as ruby for example are interpreted, which means that rather than executing the program itself the OS executes ruby which then runs the file.[^EXECWIKI] However, this process is quite slow and as such there is still a need to write compiled programs.
+When a computer runs a program the operating system must load an executable file into memory and tell the CPU to start running it. Many modern programming languages such as ruby for example are interpreted, which means that rather than executing the program itself the OS executes ruby which then runs the file.\cite{ExecutableWiki} However, this process is quite slow and as such there is still a need to write compiled programs.
 
-During the compilation of a program from source code to machine code, there are generally two steps.[^LINKERWIKI]
+During the compilation of a program from source code to machine code, there are generally two steps.\cite{LinkerWiki}
 
-First, the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.[^LINKERWIKI]
+First, the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.\cite{LinkerWiki}
 
-These object files are then processed by a linker whose job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these objects into a file that the OS can load and the CPU can run.[^LINKERWIKI]
+These object files are then processed by a linker whose job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these objects into a file that the OS can load and the CPU can run.\cite{LinkerWiki}
 
-x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available registers and instructions. Different architectures might differ in features and will therefore have different linking processes. At the time of writing x86\_64 has been the dominant CPU architecture for many years.[^X86WIKI]
+x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available registers and instructions. Different architectures might differ in features and will therefore have different linking processes. At the time of writing x86\_64 has been the dominant CPU architecture for many years.\cite{X86Wiki}
 
-ELF, executable and linkable format, is a file format that can be used for both object and executable files.[^ELFSPEC] It is the standard format for these files on nearly all all UNIX based operating systems as well as on the PS4 game's console.[^ELFWIKI]
+ELF, executable and linkable format, is a file format that can be used for both object and executable files.\cite{ELFSpec} It is the standard format for these files on nearly all all UNIX based operating systems as well as on the PS4 game's console.\autocite{ELFWiki}
 
-ELF files are based on headers and sections.[^ELFSPEC]
+ELF files are based on headers and sections.\cite{ELFSpec}
 
-At the beginning of an ELF file lies the ELF header, a header that describes the general contents of the file, if the file is an executable or object file, as well as the positions of the files section and program headers.[^ELFSPEC]
+At the beginning of an ELF file lies the ELF header, a header that describes the general contents of the file, if the file is an executable or object file, as well as the positions of the files section and program headers.\cite{ELFSpec}
 
-Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded. Since program headers only describe execution they need only be present in executable files.[^ELFSPEC]
+Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded. Since program headers only describe execution they need only be present in executable files.\cite{ELFSpec}
 
-Section headers describe the type and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contain the name of the files sections and symbol's. Symbol table entries describe symbol's names, which sections they are defined relative to and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker, as well as information regarding how to calculate the correct value. Section headers are not needed at execution and need only be present in object files.[^ELFSPEC]
+Section headers describe the type and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contain the name of the files sections and symbol's. Symbol table entries describe symbol's names, which sections they are defined relative to and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker, as well as information regarding how to calculate the correct value. Section headers are not needed at execution and need only be present in object files.\cite{ELFSpec}
 
 \section{Process}
 
@@ -112,7 +118,8 @@ rtef has no dynamic linking capabilities and cannot be used to load libraries at
 Below is a demonstrated test run, omitting the output of running rtef to preserve readability.
 
 For the contents of the files test1.nasm test2.nasm and test3.nasm, please refer to the attachments.
-```
+
+\begin{verbatim}
 deppy@Tower:/home/deppy/proj/c/rtef/test
 $ ls
 test1.nasm  test2.nasm  test3.nasm
@@ -127,10 +134,11 @@ rtef.out  test1.nasm   test1.o      test2.nasm   test2.o      test3.nasm   test3
 deppy@Tower:/home/deppy/proj/c/rtef/test
 $ ./rtef.out
 Hi world!
-```
+\end{verbatim}
 
 The executables contents can be verified using the `readelf` utility
-```
+
+\begin{verbatim}
 deppy@Tower:/home/deppy/proj/c/rtef/test
 $ readelf -h -l rtef.out
 ELF Header:
@@ -161,7 +169,7 @@ Program Headers:
                  0x0000000000000044 0x0000000000000044  R E    0x1000
   LOAD           0x0000000000002000 0x0000000020002000 0x0000000000000000
                  0x000000000000000a 0x000000000000000a  RW     0x1000
-```
+\end{verbatim}
 
 In this example, the linker resolves symbols in the test1 object file with values from both the test2 and test3 object files. Finally, a single binary is created. Once executed this binary runs code defined in the test1 object file which calls code defined in the test3 object file, passing values defined in the test2 object file.
 
@@ -200,36 +208,12 @@ The linker must then generate program headers based on these sections. While it'
 Finally, the headers and sections need to be written to an output file.
 
 \section{References}
-
-[^ELFSPEC]: Tool Interface Standards committee (TIS). (1995, May). *Executable and Linkable Format (ELF)*. In *TIS standard Portable Formats Specification V1.1*.
-
-[^ELFWIKI]: Wikipedia contributors. (2020, November 4). Executable and Linkable Format. In *Wikipedia, The Free Encyclopedia*.
-
-[^LINKERWIKI]: Wikipedia contributors. (2020, November 27). Linker (computing). In *Wikipedia, The Free Encyclopedia*.
-
-[^X86WIKI]: Wikipedia contributors. (2020, November 8). x86-64. In *Wikipedia, The Free Encyclopedia*.
-
-[^EXECWIKI]: Wikipedia contributors. (2020, November 29). Executable. In *Wikipedia, The Free Encyclopedia*.
-
-Tool Interface Standards committee (TIS). (1995, May). *Executable and Linkable Format (ELF)*. In *TIS standard Portable Formats Specification V1.1*.
-Retrieved December 3.
-
-Wikipedia contributors. (2020, November 4). Executable and Linkable Format. In *Wikipedia, The Free Encyclopedia*.
-Retrieved December 3, 2020, from [https://en.wikipedia.org/w/index.php?title=Executable_and_Linkable_Format&oldid=987064905](https://en.wikipedia.org/w/index.php?title=Executable_and_Linkable_Format&oldid=987064905).
-
-Wikipedia contributors. (2020, November 27). Linker (computing). In *Wikipedia, The Free Encyclopedia*.
-Retrieved December 3, 2020, from [https://en.wikipedia.org/w/index.php?title=Linker_(computing)&oldid=990946784](https://en.wikipedia.org/w/index.php?title=Linker_\(computing\)&oldid=990946784).
-
-Wikipedia contributors. (2020, November 8). x86-64. In *Wikipedia, The Free Encyclopedia*.
-Retrieved December 3, 2020, from [https://en.wikipedia.org/w/index.php?title=X86-64&oldid=987698018](https://en.wikipedia.org/w/index.php?title=X86-64&oldid=98769801://en.wikipedia.org/w/index.php?title=X86-64&oldid=987698018).
-
-Wikipedia contributors. (2020, November 29). Executable. In *Wikipedia, The Free Encyclopedia*.
-Retrieved December 3, 2020, from [https://en.wikipedia.org/w/index.php?title=Executable&oldid=991287717](https://en.wikipedia.org/w/index.php?title=Executable&oldid=991287717).
+\printbibliography[heading=none]
 
 \section{Attachments}
 
-test1.nasm
-```nasm
+\captionof{listing}{test1.nasm}
+\begin{minted}{nasm}
 bits 64
 
 extern msg
@@ -248,10 +232,10 @@ _start:
 
     mov rsi, 0
     jmp exit
-```
+\end{minted}
 
-test2.nasm
-```nasm
+\captionof{listing}{test2.nasm}
+\begin{minted}{nasm}
 bits 64
 
 global print:function
@@ -267,10 +251,10 @@ print:
 exit:
     mov rax, 60
     syscall
-```
+\end{minted}
 
-test3.nasm
-```nasm
+\captionof{listing}{test3.nasm}
+\begin{minted}{nasm}
 bits 64
 
 global msg
@@ -279,6 +263,6 @@ global len
 section .data
 msg db "Hi world!", 0x0a
 len equ $ - msg
-```
+\end{minted}
 
 \end{document}
