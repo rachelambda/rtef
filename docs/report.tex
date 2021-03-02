@@ -1,9 +1,11 @@
 \documentclass{article}
 
+% TODO work a bit more on the abstract and background
+
 \usepackage{authblk}
 \usepackage{caption}
 
-\usepackage[sorting=nty]{biblatex}
+\usepackage[sorting=nty,style=phys]{biblatex}
 \bibliography{bibliography}
 
 \usepackage[newfloat]{minted}
@@ -13,9 +15,7 @@
 \usepackage{titlesec}
 \newcommand{\sectionbreak}{\clearpage}
 
-\title{%
-	rtef \\
-	{\large Relocatable to executable format}}
+\title{What is the thinnest linker feature set required to produce a bootable kernel?}
 \author{David Samuelsson \\
 	{\small Advisor: Sofie Kjellgren}}
 \affil{NTI Johanneberg}
@@ -27,7 +27,8 @@
 \maketitle
 
 \begin{abstract}
-This report aims to answer the query: what is the thinnest linker feature set required to produce a bootable kernel? To find out a linker, dubbed rtef, was implemented in the C programming language. During research and implementation it was found that to produce a bootable kernel a linker needs to be able to read a configuration specifying section addresses, alignments, and offsets; read any number of object files; merge the object files' sections; resolve the object files' symbols, and write an executable file.
+
+In order to create an operating system one must produce a bootable kernel. This kernel, like any piece of compiled software, is composed of many different object files that must be linked by a linker. Existing linkers are large pieces of code, which makes them hard to port to new platforms. This makes it harder to create a self hosting operating system. This report aims to answer the query: what is the thinnest linker feature set required to produce a bootable kernel? To find out a linker, dubbed "relocatable to executable format" (or "rtef" for short), was implemented in the C programming language. During research and implementation it was found that to produce a bootable kernel a linker needs to be able to read a configuration specifying section addresses, alignments, and offsets; read any number of object files; merge the object files' sections; resolve the object files' symbols, and write an executable file.
 \end{abstract}
 
 \tableofcontents
@@ -41,33 +42,35 @@ What is the thinnest linker feature set required to produce a bootable kernel?
 
 \subsection{Background}
 
-An operating system's core, the kernel is made up of many different object files that must be linked by a linker. However, existing linkers are large, arguably over-engineered, programs that are difficult to port to new operating systems. This portability issue makes it much harder to achieve a self-hosting operating system.
+In modern society software is not only essential but omnipresent. The most essential piece of software of all is undeniably the kernel. The kernel is the core of an operating system which closes the gap between user applications and the hardware.
 
-The purpose of this project is to design a program capable of ELF object file linking which retains high portability and uses no POSIX or other non-standard C extensions.
+During compiled software development there is a toolchain which converts source files into the finished program. One of the major tools in this chain is the linker. The linkers job is to combine compiled object files into a complete program. Like all compiled software, a kernel must be linked. However, existing linkers are large, arguably over-engineered, programs that are difficult to port to new operating systems. This portability issue makes it much harder to create a self-hosting operating system since you'd have to port the linker.
+
+This report aims to find the thinnest linker feature which can produce a bootable kernel by designing a program capable of ELF object file linking which retains high portability and uses no POSIX or other non-standard C extensions.
 
 To limit the scope of this project, the program will only target the x86\_64 processor architecture, only support the ELF format for object and executable files, and have no support for dynamic linking.
 
 \subsection{Theory}
 
-When a computer runs a program the operating system must load an executable file into memory and tell the CPU to start running it. Many modern programming languages such as ruby for example are interpreted, which means that rather than executing the program itself the OS executes ruby which then runs the file.\cite{ExecutableWiki} However, this process is quite slow and as such there is still a need to write compiled programs.
+When a computer runs a program the operating system must load an executable file into memory and tell the CPU to start running it. Many modern programming languages such as ruby for example are interpreted, which means that rather than executing the program itself the OS executes an interpreter which then runs the file.\autocite{SYSVSPEC} However, this process is quite slow and as such there is still a need to write compiled programs.
 
-During the compilation of a program from source code to machine code, there are generally two steps.\cite{LinkerWiki}
+During the compilation of a program from source code to machine code, there are generally two steps.\autocite{LinkersAndLoaders}
 
-First, the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.\cite{LinkerWiki}
+First, the source files containing the code are compiled into object files by a compiler. These objects contain machine code and metadata.\autocite{LinkersAndLoaders}
 
-These object files are then processed by a linker whose job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these objects into a file that the OS can load and the CPU can run.\cite{LinkerWiki}
+These object files are then processed by a linker whose job is to resolve missing symbols in object files with defined symbols in other object files, calculating absolute memory addresses, and then combining the code from these objects into a file that the OS can load and the CPU can run.\autocite{SYSVSPEC}
 
-x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available registers and instructions. Different architectures might differ in features and will therefore have different linking processes. At the time of writing x86\_64 has been the dominant CPU architecture for many years.\cite{X86Wiki}
+x86\_64 is the name of a processor architecture. A processor architecture is in essence a description of a CPU's available storage units and instructions. Different architectures will differ in features and will therefore have different linking processes. \autocite{comparch} At the time of writing x86\_64 is the dominant CPU architecture for many years. This largely due to it being the only CPU architecture well supported by Microsoft Windwos, which has been the market leading operating system since 2009.\autocite{archstat}
 
-ELF, executable and linkable format, is a file format that can be used for both object and executable files.\cite{ELFSpec} It is the standard format for these files on nearly all all UNIX based operating systems as well as on the PS4 game's console.\autocite{ELFWiki}
+ELF, executable and linkable format, is a file format that can be used for both object and executable files.\autocite{ELFSpec} It is the standard format for these files on nearly all all UNIX based operating systems since System V Release 4.\autocite{SYSVSPEC}
 
-ELF files are based on headers and sections.\cite{ELFSpec}
+ELF files are based on headers and sections.\autocite{ELFSpec}
 
-At the beginning of an ELF file lies the ELF header, a header that describes the general contents of the file, if the file is an executable or object file, as well as the positions of the files section and program headers.\cite{ELFSpec}
+At the beginning of an ELF file lies the ELF header, a header that describes the general contents of the file, if the file is an executable or object file, as well as the positions of the files section and program headers.\autocite{ELFSpec}
 
-Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded. Since program headers only describe execution they need only be present in executable files.\cite{ELFSpec}
+Program headers describe what parts of the file to load into memory upon execution of the file as well as at what address these parts should be loaded. Since program headers only describe execution they need only be present in executable files.\autocite{ELFSpec}
 
-Section headers describe the type and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contain the name of the files sections and symbol's. Symbol table entries describe symbol's names, which sections they are defined relative to and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker, as well as information regarding how to calculate the correct value. Section headers are not needed at execution and need only be present in object files.\cite{ELFSpec}
+Section headers describe the type and position of sections in the file. The content of sections may include (but isn't limited to) machine code, string tables, symbol tables, relocation tables. String table entries contain the name of the files sections and symbol's. Symbol table entries describe symbol's names, which sections they are defined relative to and their values. Relocation table entries describe missing values within the files machine code which need to be resolved by the linker, as well as information regarding how to calculate the correct value. Section headers are not needed at execution and need only be present in object files.\autocite{ELFSpec}
 
 \section{Process}
 

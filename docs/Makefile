@@ -6,6 +6,7 @@ report.pdf: report.tex bibliography.bib
 	pdflatex -shell-escape report.tex -o $@
 	biber report
 	pdflatex -shell-escape report -o $@
+	pdflatex -shell-escape report -o $@
 	rm -rf $(GARBAGE)
 
 clean:
